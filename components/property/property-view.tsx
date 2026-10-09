@@ -166,7 +166,9 @@ export function PropertyView({ p, observations, profiles, autoEnrich, today }: {
             </p>
           </div>
           {analysis.kind !== 'hors_perimetre' ? <InputsEditor type={type} inputs={inputs} onChange={setInputs} /> : null}
-          <div className="sticky bottom-2 z-10 flex flex-wrap items-center gap-2 no-print">
+          <div
+            className={`flex flex-wrap items-center gap-2 no-print ${dirty ? 'sticky bottom-2 z-10 rounded-lg border border-accent/40 bg-surface p-2 shadow-lg' : ''}`}
+          >
             <Button variant="primary" onClick={save} disabled={!dirty || saving} data-testid="enregistrer">
               <Save className="h-4 w-4" /> {saving ? 'Enregistrement…' : dirty ? 'Enregistrer les modifications' : 'Enregistré'}
             </Button>
@@ -182,7 +184,8 @@ export function PropertyView({ p, observations, profiles, autoEnrich, today }: {
                 Annuler
               </Button>
             ) : null}
-            {msg ? <span className="rounded bg-surface px-2 py-1 text-sm text-muted shadow">{msg}</span> : null}
+            {dirty ? <span className="text-xs text-muted">Résultats recalculés, non enregistrés.</span> : null}
+            {msg ? <span className="text-sm text-muted">{msg}</span> : null}
           </div>
           {rental ? <RentalResults a={rental} profile={profile.params} /> : null}
           {analysis.kind === 'fonds' ? <FondsResults a={analysis} /> : null}

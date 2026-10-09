@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import path from 'node:path';
 import { login } from './helpers';
@@ -8,14 +8,23 @@ const VERDICTS = /À visiter|À négocier|Hors critères|Données insuffisantes/
 
 test.describe.serial('Parcours principal', () => {
   let propertyUrl = '';
+  // Une seule connexion pour tout le parcours (comme un utilisateur réel).
+  let page: Page;
+  test.beforeAll(async ({ browser }, info) => {
+    const ctx = await browser.newContext({ baseURL: info.project.use.baseURL, locale: 'fr-FR', timezoneId: 'Europe/Paris' });
+    page = await ctx.newPage();
+  });
+  test.afterAll(async () => {
+    await page.context().close();
+  });
 
-  test('connexion par code à 6 chiffres', async ({ page }) => {
+  test('connexion par code à 6 chiffres', async () => {
     await login(page, email);
     await expect(page.getByText('Aucun bien pour l’instant.')).toBeVisible();
   });
 
-  test('ajout rapide en 5 champs puis verdict enrichi', async ({ page }) => {
-    await login(page, email);
+  test('ajout rapide en 5 champs puis verdict enrichi', async () => {
+    await page.goto('/');
     await page.getByTestId('ajout-rapide').click();
     await page.getByLabel('Type d’actif *').selectOption('appartement');
     await page.getByLabel('Prix demandé (€) *').fill('250 000');
@@ -40,15 +49,13 @@ test.describe.serial('Parcours principal', () => {
     await expect(page.getByText(/0 vente\b/)).toHaveCount(0);
   });
 
-  test('chaque chiffre propose « Comment c’est calculé »', async ({ page }) => {
-    await login(page, email);
+  test('chaque chiffre propose « Comment c’est calculé »', async () => {
     await page.goto(propertyUrl);
     await page.getByRole('button', { name: /Comment c'est calculé : Cash-flow mensuel prudent/ }).first().click();
     await expect(page.getByText('(RNE − mensualités × 12 − assurance emprunteur annuelle) / 12').first()).toBeVisible();
   });
 
-  test('baisse de prix : nouvelle observation et baisse signalée', async ({ page }) => {
-    await login(page, email);
+  test('baisse de prix : nouvelle observation et baisse signalée', async () => {
     await page.goto(propertyUrl);
     const prix = page.getByTestId('champ-prix');
     await prix.fill('235000');
@@ -58,8 +65,8 @@ test.describe.serial('Parcours principal', () => {
     await expect(page.getByTestId('baisse-prix')).toContainText('6,0 %');
   });
 
-  test('même URL avec paramètres de suivi : un seul bien, nouvelle observation', async ({ page }) => {
-    await login(page, email);
+  test('même URL avec paramètres de suivi : un seul bien, nouvelle observation', async () => {
+    await page.goto('/');
     await page.getByTestId('ajout-rapide').click();
     await page.getByLabel('Prix demandé (€) *').fill('230000');
     await page.getByLabel('Surface (m²) *').fill('40');
@@ -73,8 +80,7 @@ test.describe.serial('Parcours principal', () => {
     await expect(page.locator('table').filter({ hasText: '230 000' })).toBeVisible();
   });
 
-  test('import CSV : aperçu sans écriture, puis confirmation', async ({ page }) => {
-    await login(page, email);
+  test('import CSV : aperçu sans écriture, puis confirmation', async () => {
     await page.goto('/reglages');
     await page.getByTestId('import-fichier').setInputFiles(path.join(__dirname, '..', 'docs', 'exemple-import.csv'));
     await expect(page.getByTestId('import-apercu')).toContainText('5 ligne(s) prête(s)');
@@ -88,8 +94,13 @@ test.describe.serial('Parcours principal', () => {
     await expect(page.getByTestId('liste-biens')).toContainText('6 biens affichés sur 6');
   });
 
-  test('comparateur : deux biens côte à côte', async ({ page }) => {
-    await login(page, email);
+  test('enrichissement groupé des biens importés', async () => {
+    await page.goto('/');
+    await page.getByTestId('enrichir-tout').click();
+    await expect(page.getByText(/bien\(s\) enrichi\(s\)/)).toBeVisible({ timeout: 110_000 });
+  });
+
+  test('comparateur : deux biens côte à côte', async () => {
     await page.goto('/');
     const boxes = page.getByRole('checkbox', { name: /^Comparer/ });
     await boxes.nth(0).check();

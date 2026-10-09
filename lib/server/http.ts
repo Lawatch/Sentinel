@@ -51,7 +51,7 @@ export async function fetchSource(url: string, init: RequestInit & { timeoutMs?:
   } catch (e) {
     const err = e as Error;
     if (err.name === 'TimeoutError' || err.name === 'AbortError') throw new SourceError(`délai de ${(init.timeoutMs ?? SOURCE_TIMEOUT_MS) / 1000} s dépassé`);
-    throw new SourceError(`réseau : ${err.message}`);
+    throw new SourceError(err.message === 'fetch failed' ? 'connexion à la source impossible' : `réseau : ${err.message}`);
   } finally {
     release();
   }

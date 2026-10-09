@@ -33,7 +33,7 @@ function HypCell({ s, i, format }: { s: ScenarioResult; i: number; format: (v: n
         <span className={cn('font-medium', h.valeur === null && 'text-muted')}>{h.valeur === null ? 'inconnu' : format(h.valeur)}</span>
         <StatusPill statut={h.statut} compact source={h.source} />
       </div>
-      {h.source ? <span className="block text-[11px] leading-tight text-muted">{h.source}</span> : null}
+      {h.source ? <span className="block break-words text-[11px] leading-tight text-muted">{h.source}</span> : null}
     </td>
   );
 }
@@ -62,7 +62,13 @@ export function RentalResults({ a, profile }: { a: RentalAnalysis; profile: Prof
           <p className="text-xs text-muted">Paramètres des scénarios modifiables dans le profil. Chaque chiffre indique son origine.</p>
         </CardHeader>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm" data-testid="scenarios">
+          <table className="w-full min-w-[720px] table-fixed text-sm" data-testid="scenarios">
+            <colgroup>
+              <col className="w-48" />
+              <col />
+              <col />
+              <col />
+            </colgroup>
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted">
                 <th className="px-2 py-2 font-medium" />
@@ -76,7 +82,7 @@ export function RentalResults({ a, profile }: { a: RentalAnalysis; profile: Prof
             <tbody>
               {rows.map((r) => (
                 <tr key={r.label} className="border-b border-border last:border-0">
-                  <th className="w-56 px-2 py-2 text-left align-top text-xs font-medium text-muted">{r.label}</th>
+                  <th className="px-2 py-2 text-left align-top text-xs font-medium text-muted">{r.label}</th>
                   {sc.map((s) => (
                     <FragmentCell key={s.nom}>{r.render(s)}</FragmentCell>
                   ))}

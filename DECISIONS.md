@@ -52,7 +52,9 @@ Ambiguïtés non bloquantes tranchées pendant la construction, avec leur raison
     déductibles ni frais d'emprunt ne sont déduits (le cahier des charges ne cite que les intérêts et l'assurance).
     Prélèvements sociaux : 17,2 % en location nue, 18,6 % en LMNP (LFSS 2026).
 18. **Encadrement** : plafond = loyer de référence majoré × surface (hors complément de loyer). Valeur saisie par
-    l'utilisateur prioritaire sur les données ouvertes.
+    l'utilisateur prioritaire sur les données ouvertes. Un loyer au-dessus du plafond est **bloquant** si le plafond est
+    saisi ou issu de données ouvertes de l'année en cours ou précédente ; s'il provient de données plus anciennes
+    (Plaine Commune et Est Ensemble : 2023), c'est une **alerte** invitant à saisir le plafond en vigueur.
 19. **Ordre du verdict** : un point bloquant (DPE G, loyer au-dessus du plafond, budget dépassé) donne « Hors critères »
     même si les données sont fragiles (T14) ; viennent ensuite « Données insuffisantes », « À visiter », « À négocier ».
     Le budget compare le **prix demandé** au budget maximal.
@@ -62,7 +64,8 @@ Ambiguïtés non bloquantes tranchées pendant la construction, avec leur raison
     max(36 mois, mois jusqu'à la prochaine échéance + 12) ; loyer = min(loyer actuel, loyer de marché saisi) ; travaux de
     remise en état ajoutés ; refacturation « inconnue » traitée comme « non » sauf dans le scénario favorable.
 22. **Fonds de commerce** : le prêt, s'il n'est pas saisi, vaut besoin − apport ; verdict sur le scénario CA −10 %
-    (trésorerie ≥ cible × 12 et couverture ≥ 1,25, paramétrable) ; prix maximal par dichotomie sur ce scénario.
+    (trésorerie ≥ cible × 12 et couverture ≥ 1,25, paramétrable) ; prix maximal par dichotomie sur ce scénario, en
+    respectant les deux conditions.
 23. **Alertes DPE** : l'interdiction de la classe G porte sur tout nouveau bail depuis le 1er janvier 2025. Les classes F
     (2028) et E (2034) sont des alertes, comme le reclassement possible des DPE « électriques » antérieurs à 2026.
 

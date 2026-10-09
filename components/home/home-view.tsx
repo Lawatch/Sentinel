@@ -85,7 +85,25 @@ export function HomeView({ summaries, zones, budgetDefaut }: { summaries: Proper
   const [features, setFeatures] = useState<Feature<Polygon | MultiPolygon>[]>([]);
   const [progress, setProgress] = useState<string | null>(null);
   const [, start] = useTransition();
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [bulk, setBulk] = useState<string | null>(null);
   const zone = zones.find((z) => z.id === zoneId) ?? null;
+  const notEnriched = summaries.filter((s) => !s.enrichi && !s.hors_perimetre);
+
+  // Enrichit à la suite les biens jamais enrichis (après un import ou la démonstration).
+  const enrichAll = async () => {
+    const list = [...notEnriched];
+    let done = 0;
+    let failed = 0;
+    for (const s of list) {
+      setBulk(`Enrichissement ${done + 1}/${list.length} : ${s.titre}…`);
+      const r = await fetch(`/api/biens/${s.id}/enrichir`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(() => null);
+      if (!r || !r.ok) failed++;
+      done++;
+    }
+    setBulk(`${done - failed} bien(s) enrichi(s)${failed ? `, ${failed} échec(s)` : ''}.`);
+    router.refresh();
+  };
 
   const filtered = useMemo(() => {
     let list = summaries;
@@ -198,7 +216,7 @@ export function HomeView({ summaries, zones, budgetDefaut }: { summaries: Proper
 
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] flex-col">
-      <div className="flex flex-wrap items-end gap-2 border-b border-border bg-surface px-3 py-2">
+      <div className={cn('flex-wrap items-end gap-2 border-b border-border bg-surface px-3 py-2', filtersOpen ? 'flex' : 'hidden md:flex')}>
         <div className="flex rounded-md border border-border p-0.5" role="tablist" aria-label="Couche de la carte">
           {(['biens', 'marche'] as const).map((m) => (
             <button key={m} role="tab" aria-selected={mode === m} onClick={() => setMode(m)} className={cn('rounded px-2.5 py-1 text-sm', mode === m ? 'bg-accent text-accent-fg' : 'text-muted hover:text-fg')}>
@@ -270,7 +288,7 @@ export function HomeView({ summaries, zones, budgetDefaut }: { summaries: Proper
           </Field>
         )}
         {selected.length >= 2 ? (
-          <Button asChild variant="primary" size="sm" className="ml-auto">
+          <Button asChild variant="primary" size="sm" className="ml-auto hidden md:inline-flex">
             <Link href={`/comparer?ids=${selected.join(',')}`}>
               <Columns3 className="h-4 w-4" /> Comparer ({selected.length})
             </Link>
@@ -279,11 +297,19 @@ export function HomeView({ summaries, zones, budgetDefaut }: { summaries: Proper
       </div>
 
       <div className="flex border-b border-border md:hidden">
+        <button onClick={() => setFiltersOpen(!filtersOpen)} className="border-r border-border px-3 text-sm text-accent" aria-expanded={filtersOpen}>
+          {filtersOpen ? 'Masquer' : 'Filtres'}
+        </button>
         {(['liste', 'carte'] as const).map((t) => (
           <button key={t} onClick={() => setMobileTab(t)} className={cn('flex-1 py-2 text-sm', mobileTab === t ? 'border-b-2 border-accent font-medium' : 'text-muted')}>
             {t === 'liste' ? (mode === 'biens' ? `Liste (${filtered.length})` : 'Classement') : 'Carte'}
           </button>
         ))}
+        {selected.length >= 2 ? (
+          <Link href={`/comparer?ids=${selected.join(',')}`} className="flex items-center gap-1 border-l border-border px-3 text-sm font-medium text-accent">
+            <Columns3 className="h-4 w-4" /> {selected.length}
+          </Link>
+        ) : null}
       </div>
 
       <div className="flex min-h-0 flex-1">
@@ -322,6 +348,17 @@ export function HomeView({ summaries, zones, budgetDefaut }: { summaries: Proper
 
         <div className={cn('min-h-0 flex-1 overflow-y-auto md:block', mobileTab === 'liste' ? 'block' : 'hidden')}>
           {zone ? <ZoneBar key={zone.id + zone.nom} zone={zone} onDeleted={() => setZoneId(null)} /> : null}
+          {mode === 'biens' && (notEnriched.length || bulk) ? (
+            <div className="flex flex-wrap items-center gap-2 border-b border-border bg-warning/5 px-3 py-2 text-xs">
+              {notEnriched.length ? <span>{notEnriched.length} bien(s) pas encore enrichi(s) avec les données publiques.</span> : null}
+              {notEnriched.length && !bulk?.startsWith('Enrichissement') ? (
+                <Button size="sm" onClick={() => start(enrichAll)} data-testid="enrichir-tout">
+                  Enrichir maintenant
+                </Button>
+              ) : null}
+              {bulk ? <span className="text-muted">{bulk}</span> : null}
+            </div>
+          ) : null}
           {mode === 'marche' ? (
             <MarketRanking zone={zone} ranking={ranking} />
           ) : (
@@ -489,7 +526,9 @@ function PropertyList({ list, total, selected, setSelected }: { list: PropertySu
                 <span className="col-span-2 text-warning">Hors périmètre : analyse dédiée nécessaire</span>
               ) : (
                 <>
-                  <VerdictBadge verdict={s.verdict} size="sm" />
+                  <span className="w-fit">
+                    <VerdictBadge verdict={s.verdict} size="sm" />
+                  </span>
                   <span>
                     <span className="text-muted">{s.type_actif === 'fonds_commerce' ? 'Trésorerie ' : 'CF prudent '}</span>
                     <span className={cn('font-medium', s.cash_flow_prudent !== null && (s.cash_flow_prudent >= 0 ? 'text-success' : 'text-danger'))}>

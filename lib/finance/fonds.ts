@@ -121,17 +121,27 @@ export function computeFonds(n: FondsNumbers): FondsResult {
 }
 
 /**
- * Prix de cession maximal pour que la trésorerie annuelle du scénario prudent (CA −10 %)
- * atteigne la cible, à apport constant (le prêt couvre le reste du besoin).
+ * Prix de cession maximal pour que, dans le scénario prudent (CA −10 %), la trésorerie annuelle
+ * atteigne la cible ET la couverture de la dette atteigne le minimum, à apport constant
+ * (le prêt couvre le reste du besoin).
  */
-export function maxFondsPrice(n: FondsNumbers, apport: number, cibleAnnuelle: number, choc = -0.1) {
-  const f = (P: number) => {
+export function maxFondsPrice(n: FondsNumbers, apport: number, cibleAnnuelle: number, couvertureMin = 0, choc = -0.1) {
+  const at = (P: number) => {
     const besoin = computeFonds({ ...n, prix: P, pret_montant: 0 }).besoin_total;
-    const pret = Math.max(0, besoin - apport);
-    const r = computeFonds({ ...n, prix: P, pret_montant: pret });
-    return r.scenarios.find((s) => Math.abs(s.ca - n.ca * (1 + choc)) < 1e-6)?.tresorerie ?? r.tresorerie_apres_dette;
+    const r = computeFonds({ ...n, prix: P, pret_montant: Math.max(0, besoin - apport) });
+    const ca = n.ca * (1 + choc);
+    const ebe = r.ebe_retraite + (ca - n.ca) * n.taux_marge_cv;
+    const tresorerie = ebe - n.investissements_maintien - r.annuite;
+    const couverture = r.annuite > 0 ? (ebe - n.investissements_maintien) / r.annuite : Number.POSITIVE_INFINITY;
+    return { tresorerie, couverture };
   };
-  const P = maxSatisfying(f, cibleAnnuelle, n.prix);
+  // Marge la plus faible des deux contraintes (toutes deux décroissantes avec le prix).
+  const f = (P: number) => {
+    const x = at(P);
+    const margeCouverture = Number.isFinite(x.couverture) ? (x.couverture - couvertureMin) * 1e5 : Number.POSITIVE_INFINITY;
+    return Math.min(x.tresorerie - cibleAnnuelle, margeCouverture);
+  };
+  const P = maxSatisfying(f, 0, n.prix);
   if (P === null || P <= 0) return { atteignable: false as const };
   return { atteignable: true as const, prix_max: P, ecart: (P - n.prix) / n.prix };
 }

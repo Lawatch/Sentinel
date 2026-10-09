@@ -23,8 +23,15 @@ export async function latestCode(email: string, after: number): Promise<string> 
 export async function login(page: Page, email: string) {
   await page.goto('/login');
   await page.getByLabel('Adresse e-mail').fill(email);
-  const t0 = Date.now();
-  await page.getByRole('button', { name: 'Recevoir le lien de connexion' }).click();
+  let t0 = Date.now();
+  // Le serveur d'authentification limite la fréquence des envois : on réessaie une fois si besoin.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    t0 = Date.now();
+    await page.getByRole('button', { name: 'Recevoir le lien de connexion' }).click();
+    const ok = await page.getByLabel('Code reçu par e-mail').waitFor({ timeout: 8000 }).then(() => true, () => false);
+    if (ok) break;
+    await page.waitForTimeout(3000);
+  }
   await expect(page.getByLabel('Code reçu par e-mail')).toBeVisible();
   const code = await latestCode(email, t0);
   await page.getByLabel('Code reçu par e-mail').fill(code);

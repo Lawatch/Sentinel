@@ -76,6 +76,17 @@ export async function enrichProperty(d: Deps, p: PropertyForEnrichment, opts: { 
     }
   }
 
+  if (!geo && lat !== null && lon !== null) {
+    geo = {
+      status: 'ok',
+      source: 'Coordonnées enregistrées avec le bien',
+      recupere_le: null,
+      label: p.adresse,
+      a_confirmer: false,
+      confirme: true,
+      message: 'Position déjà connue : pas de géocodage nécessaire.',
+    };
+  }
   const enrichment: Enrichment = { date: now, geocodage: geo };
   const located = lat !== null && lon !== null && !!code;
   if (!located) {

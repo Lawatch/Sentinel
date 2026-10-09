@@ -180,3 +180,49 @@ describe('Cas de test de référence (section 10)', () => {
     expect(JSON.stringify(run())).toBe(JSON.stringify(run()));
   });
 });
+
+describe('Règles complémentaires', () => {
+  const base = {
+    type: 'appartement' as const,
+    today: '2026-10-09',
+    profile: profileT4(),
+    inputs: inputs({ prix: declared(200000), surface: declared(40), loyer: declared(1100), dpe: { classe: { valeur: 'D', statut: 'declare' } } }),
+  };
+  const enc = (millesime: string) => ({ status: 'ok' as const, applicable: true, source: 'Encadrement', millesime, ref_majore_m2: 20 });
+
+  it('loyer au-dessus d’un plafond récent : bloquant', () => {
+    const a = analyze({ ...base, market: { encadrement: enc('2025') } }) as RentalAnalysis;
+    expect(a.alertes.some((x) => x.niveau === 'bloquant' && /plafond d’encadrement/.test(x.message))).toBe(true);
+    expect(a.verdict.verdict).toBe('hors_criteres');
+  });
+
+  it('loyer au-dessus d’un plafond issu de données anciennes : alerte, pas de blocage', () => {
+    const a = analyze({ ...base, market: { encadrement: enc('2023') } }) as RentalAnalysis;
+    expect(a.alertes.some((x) => x.niveau === 'bloquant')).toBe(false);
+    expect(a.alertes.some((x) => x.niveau === 'alerte' && /données 2023/.test(x.message))).toBe(true);
+  });
+
+  it('plafond saisi par l’utilisateur : bloquant quelle que soit la date', () => {
+    const a = analyze({ ...base, inputs: { ...base.inputs, loyer_reference_majore: { valeur: 20, statut: 'verifie' } } }) as RentalAnalysis;
+    expect(a.alertes.some((x) => x.niveau === 'bloquant' && /plafond/.test(x.message))).toBe(true);
+  });
+
+  it('fonds : le prix maximal respecte aussi la couverture minimale de la dette', async () => {
+    const { maxFondsPrice, computeFonds } = await import('@/lib/finance/fonds');
+    const n = {
+      prix: 150000, stock_inclus: false, stock: 15000, honoraires: 6000, investissements_initiaux: 20000, bfr: 10000,
+      pret_montant: 150000, pret_taux: 0.045, pret_duree_mois: 84, ca: 400000, ca_precedent: null, ebe_comptable: 70000,
+      remuneration_cedant: 30000, remuneration_cible: 45000, retraitements: 0, loyer_annuel: 24000, masse_salariale: null,
+      investissements_maintien: 5000, taux_marge_cv: 0.6,
+    };
+    const sansCouverture = maxFondsPrice(n, 54810, 0, 0);
+    const avecCouverture = maxFondsPrice(n, 54810, 0, 1.25);
+    expect(sansCouverture.atteignable && avecCouverture.atteignable).toBe(true);
+    if (!sansCouverture.atteignable || !avecCouverture.atteignable) return;
+    expect(avecCouverture.prix_max).toBeLessThan(sansCouverture.prix_max);
+    // Au prix trouvé, la couverture du scénario CA −10 % vaut le minimum.
+    const besoin = computeFonds({ ...n, prix: avecCouverture.prix_max, pret_montant: 0 }).besoin_total;
+    const r = computeFonds({ ...n, prix: avecCouverture.prix_max, pret_montant: besoin - 54810 });
+    close(r.scenarios[1].couverture, 1.25, 0.001);
+  });
+});

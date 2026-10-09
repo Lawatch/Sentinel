@@ -10,6 +10,10 @@ test.skip(!process.env.CAPTURES, 'Captures désactivées');
 const dump = async (page: Page, name: string) => {
   await page.waitForTimeout(800);
   const buf = await page.screenshot({ type: 'jpeg', quality: 50, fullPage: false });
+  if (process.env.CAPTURES_DIR) {
+    (await import('node:fs')).writeFileSync(`${process.env.CAPTURES_DIR}/${name}.jpg`, buf);
+    return;
+  }
   const b64 = buf.toString('base64');
   for (let i = 0; i < b64.length; i += 60000) console.log(`CAPTURE ${name} ${i / 60000} ${b64.slice(i, i + 60000)}`);
 };

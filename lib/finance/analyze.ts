@@ -62,6 +62,7 @@ const orHypothesis = (label: string, f: NumField | undefined, valeur: number | n
   known(f) ? fromField(label, f) : valeur === null ? { label, valeur: null, statut: 'inconnu' } : hypothesis(label, valeur, source);
 
 const isWeak = (s: FieldStatus) => s === 'hypothese' || s === 'inconnu';
+const fr = (v: number, d = 2) => v.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 const term = (r: Resolved, unite: Term['unite'] = '€'): Term => ({
   label: r.label,
@@ -230,7 +231,7 @@ function analyzeRental(input: AnalyzeInput): RentalAnalysis {
         label: 'Loyer de marché HC (central)',
         valeur: Math.max(0, (ml!.loypredm2! - recupM2.valeur!) * S!),
         statut: 'estime',
-        source: `${ml!.source} ${ml!.millesime ?? ''} : ${ml!.loypredm2!.toFixed(2)} €/m² CC − ${recupM2.valeur!.toFixed(2)} €/m² de charges récupérables`,
+        source: `${ml!.source} ${ml!.millesime ?? ''} : ${fr(ml!.loypredm2!)} €/m² CC − ${fr(recupM2.valeur!)} €/m² de charges récupérables`,
       }
     : { label: 'Loyer de marché HC (central)', valeur: null, statut: 'inconnu' };
   const marketLow: Resolved =
@@ -239,7 +240,7 @@ function analyzeRental(input: AnalyzeInput): RentalAnalysis {
           label: 'Loyer de marché HC (borne basse)',
           valeur: Math.max(0, (ml!.lwr_m2 - recupM2.valeur!) * S!),
           statut: 'estime',
-          source: `${ml!.source} : borne basse de l’intervalle de prédiction ${ml!.lwr_m2.toFixed(2)} €/m² CC`,
+          source: `${ml!.source} : borne basse de l’intervalle de prédiction ${fr(ml!.lwr_m2)} €/m² CC`,
         }
       : { label: 'Loyer de marché HC (borne basse)', valeur: null, statut: 'inconnu' };
 
@@ -251,14 +252,14 @@ function analyzeRental(input: AnalyzeInput): RentalAnalysis {
         label: 'Plafond d’encadrement',
         valeur: inputs.loyer_reference_majore.valeur * S,
         statut: inputs.loyer_reference_majore.statut,
-        source: `Loyer de référence majoré saisi ${inputs.loyer_reference_majore.valeur} €/m² × ${S} m²`,
+        source: `Loyer de référence majoré saisi ${fr(inputs.loyer_reference_majore.valeur, 1)} €/m² × ${fr(S, 1)} m²`,
       };
     } else if (market.encadrement?.status === 'ok' && market.encadrement.applicable && market.encadrement.ref_majore_m2) {
       plafond = {
         label: 'Plafond d’encadrement',
         valeur: market.encadrement.ref_majore_m2 * S,
         statut: 'estime',
-        source: `${market.encadrement.source} ${market.encadrement.millesime ?? ''} : ${market.encadrement.ref_majore_m2} €/m² × ${S} m²`,
+        source: `${market.encadrement.source} ${market.encadrement.millesime ?? ''} : ${fr(market.encadrement.ref_majore_m2, 1)} €/m² × ${fr(S, 1)} m²`,
       };
     }
   }
@@ -279,9 +280,14 @@ function analyzeRental(input: AnalyzeInput): RentalAnalysis {
 
   const minOf = (label: string, xs: Resolved[]): Resolved => {
     const ok = xs.filter((x) => x.valeur !== null);
+    const missing = xs.filter((x) => x.valeur === null).map((x) => x.label.toLowerCase());
     if (ok.length === 0) return { label, valeur: null, statut: 'inconnu' };
     const best = ok.reduce((a, b) => (b.valeur! < a.valeur! ? b : a));
-    return { ...best, label, source: `Minimum de : ${ok.map((x) => x.label.toLowerCase()).join(', ')} → ${best.label.toLowerCase()}` };
+    const source =
+      ok.length === 1
+        ? `${best.label} (seule valeur disponible${missing.length ? ` ; indisponible : ${missing.join(', ')}` : ''})`
+        : `Minimum de : ${ok.map((x) => x.label.toLowerCase()).join(', ')} → ${best.label.toLowerCase()}`;
+    return { ...best, label, source };
   };
 
   const rentFor = (s: ScenarioName): Resolved => {
@@ -398,9 +404,9 @@ function analyzeRental(input: AnalyzeInput): RentalAnalysis {
       s === 'prudent'
         ? isMurs
           ? mursVacancePrudente()
-          : hypothesis('Vacance', p.vacance + p.scenarios.prudent_vacance_plus, `Profil + ${p.scenarios.prudent_vacance_plus * 100} points`)
+          : hypothesis('Vacance', p.vacance + p.scenarios.prudent_vacance_plus, `Profil + ${fr(p.scenarios.prudent_vacance_plus * 100, 0)} points`)
         : s === 'favorable'
-          ? hypothesis('Vacance', Math.max(0, p.vacance - p.scenarios.favorable_vacance_moins), `Profil − ${p.scenarios.favorable_vacance_moins * 100} points (minimum 0)`)
+          ? hypothesis('Vacance', Math.max(0, p.vacance - p.scenarios.favorable_vacance_moins), `Profil − ${fr(p.scenarios.favorable_vacance_moins * 100, 0)} points (minimum 0)`)
           : vacanceCentral;
     const baseTravaux = travaux.valeur ?? 0;
     const extra = s === 'prudent' && remiseEnEtat?.valeur ? remiseEnEtat.valeur : 0;
@@ -410,12 +416,12 @@ function analyzeRental(input: AnalyzeInput): RentalAnalysis {
             ...travaux,
             label: 'Travaux',
             valeur: baseTravaux * (1 + p.scenarios.prudent_travaux_plus) + extra,
-            source: `Saisis + ${p.scenarios.prudent_travaux_plus * 100} %${extra ? ' + remise en état' : ''}`,
+            source: `Saisis + ${fr(p.scenarios.prudent_travaux_plus * 100, 0)} %${extra ? ' + remise en état' : ''}`,
           }
         : travaux;
     const taux: Resolved =
       s === 'prudent'
-        ? hypothesis('Taux nominal', p.taux_credit + p.scenarios.prudent_taux_plus, `Profil + ${p.scenarios.prudent_taux_plus * 100} point`)
+        ? hypothesis('Taux nominal', p.taux_credit + p.scenarios.prudent_taux_plus, `Profil + ${fr(p.scenarios.prudent_taux_plus * 100, 1)} point`)
         : tauxCentral;
     let tf = taxeFonciere;
     let cop = copro;
@@ -650,10 +656,20 @@ function analyzeRental(input: AnalyzeInput): RentalAnalysis {
   if (isResidential) {
     alertes.push(...dpeAlerts(inputs, today));
     if (plafond.valeur !== null && declared.valeur !== null && declared.valeur > plafond.valeur + 1e-9) {
-      alertes.push({
-        niveau: 'bloquant',
-        message: `Loyer déclaré (${Math.round(declared.valeur)} €) supérieur au plafond d’encadrement (${Math.round(plafond.valeur)} €).`,
-      });
+      // Un plafond issu de données ouvertes anciennes (antérieures à l'année précédente) ne suffit pas à bloquer.
+      const millesime = Number(market.encadrement?.millesime ?? NaN);
+      const ancien = plafond.statut === 'estime' && Number.isFinite(millesime) && millesime < Number(today.slice(0, 4)) - 1;
+      alertes.push(
+        ancien
+          ? {
+              niveau: 'alerte',
+              message: `Loyer déclaré (${Math.round(declared.valeur)} €) supérieur au plafond calculé avec les données ${millesime} (${Math.round(plafond.valeur)} €) : vérifiez le loyer de référence majoré en vigueur.`,
+            }
+          : {
+              niveau: 'bloquant',
+              message: `Loyer déclaré (${Math.round(declared.valeur)} €) supérieur au plafond d’encadrement (${Math.round(plafond.valeur)} €).`,
+            },
+      );
     }
     if (market.encadrement?.applicable && market.encadrement.message) alertes.push({ niveau: 'info', message: market.encadrement.message });
     if (marketOk) {
@@ -688,7 +704,11 @@ function analyzeRental(input: AnalyzeInput): RentalAnalysis {
   const keyFields: Resolved[] = isMurs
     ? [loyerCentral, entrees.taxe_fonciere, copro, travaux]
     : [loyerCentral, entrees.taxe_fonciere, copro, travaux];
-  const confiance = confidenceOf(keyFields, isMurs ? null : dvf?.status === 'ok' ? dvf.n : 0);
+  const confiance = confidenceOf(
+    keyFields,
+    isMurs ? null : dvf?.status === 'ok' ? dvf.n : 0,
+    isMurs || dvf?.status === 'ok' || dvf?.status === 'insuffisant' ? undefined : dvf?.status === 'indisponible' ? 'DVF indisponible' : 'comparables DVF non disponibles',
+  );
 
   // Verdict.
   const verdict = verdictOf({
@@ -769,7 +789,7 @@ export function dpeAlerts(inputs: PropertyInputs, today: string): Alert[] {
 /* Confiance et verdict                                                */
 /* ------------------------------------------------------------------ */
 
-export function confidenceOf(keyFields: Resolved[], comparables: number | null): { niveau: Confidence; raisons: string[] } {
+export function confidenceOf(keyFields: Resolved[], comparables: number | null, comparablesNote?: string): { niveau: Confidence; raisons: string[] } {
   const raisons: string[] = [];
   const [loyer] = keyFields;
   const hyp = keyFields.filter((f) => f.statut === 'hypothese');
@@ -777,7 +797,7 @@ export function confidenceOf(keyFields: Resolved[], comparables: number | null):
   const weak = keyFields.filter((f) => isWeak(f.statut));
   if (isWeak(loyer.statut)) raisons.push(`${loyer.label} : ${loyer.statut === 'inconnu' ? 'inconnu' : 'hypothèse'}`);
   if (hyp.length >= 2) raisons.push(`${hyp.length} champs clés en hypothèse (${hyp.map((h) => h.label.toLowerCase()).join(', ')})`);
-  if (comparables !== null && comparables < 5) raisons.push(`${comparables} comparable(s) DVF (moins de 5)`);
+  if (comparables !== null && comparables < 5) raisons.push(comparablesNote ?? `${comparables} comparable(s) DVF (moins de 5)`);
   if (isWeak(loyer.statut) || hyp.length >= 2 || (comparables !== null && comparables < 5)) return { niveau: 'C', raisons };
   if (weak.length === 0 && (comparables === null || comparables >= 8)) {
     return { niveau: 'A', raisons: ['Champs clés documentés' + (comparables === null ? '' : ` et ${comparables} comparables DVF`)] };
@@ -939,7 +959,7 @@ function analyzeFonds(input: AnalyzeInput): FondsAnalysis {
   if (known(f.duree_restante_bail_mois) && f.duree_restante_bail_mois.valeur < 36)
     alertes.push({ niveau: 'alerte', message: 'Moins de 3 ans de bail restant : conditions de renouvellement à négocier.' });
   const prudentScen = r.scenarios[1];
-  const offreRes = maxFondsPrice(n, entrees.apport.valeur!, p.cash_flow_cible * 12);
+  const offreRes = maxFondsPrice(n, entrees.apport.valeur!, p.cash_flow_cible * 12, p.verdict.couverture_min_fonds);
   const termesBase: Term[] = [
     { label: 'EBE comptable', valeur: n.ebe_comptable, unite: '€/an', statut: ebe.statut },
     { label: '+ rémunération du cédant comptabilisée', valeur: n.remuneration_cedant, unite: '€/an', statut: entrees.remuneration_cedant.statut },
@@ -974,8 +994,9 @@ function analyzeFonds(input: AnalyzeInput): FondsAnalysis {
     ]),
   };
   const offreInd = offreRes.atteignable
-    ? indicator(offreRes.prix_max, 'Prix tel que la trésorerie annuelle du scénario CA −10 % = cible × 12 (apport constant)', [
+    ? indicator(offreRes.prix_max, 'Prix maximal tel que, au scénario CA −10 %, trésorerie ≥ cible × 12 et couverture de la dette ≥ minimum (apport constant)', [
         { label: 'Cible annuelle', valeur: p.cash_flow_cible * 12, unite: '€/an', statut: 'hypothese' },
+        { label: 'Couverture minimale', valeur: p.verdict.couverture_min_fonds, unite: '', statut: 'hypothese' },
         { label: 'Écart au prix demandé', valeur: offreRes.ecart * 100, unite: '%' },
       ])
     : notComputable([], 'Prix maximal', 'Objectif inatteignable avec ces hypothèses.');

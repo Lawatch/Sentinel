@@ -153,6 +153,11 @@ export default function MainMap({
         drawZone(gj.geometry);
       });
       map.current = m;
+      // La taille du conteneur peut changer après l'initialisation (mise en page, bascule mobile).
+      const ro = new ResizeObserver(() => m.invalidateSize());
+      ro.observe(el.current);
+      m.once('unload', () => ro.disconnect());
+      setTimeout(() => m.invalidateSize(), 50);
       ready.current = true;
       redraw();
       const pts = properties.filter((p) => p.lat !== null && p.lon !== null).map((p) => [p.lat!, p.lon!] as [number, number]);

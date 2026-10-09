@@ -1,0 +1,221 @@
+Prompt maître v2 — Analyseur d'opportunités immobilières et commerciales
+9 oct. 2026 · @EOµ1
+1. Mission et périmètre
+Construis et déploie une application web personnelle qui dit en moins de deux minutes si une annonce immobilière ou commerciale mérite une visite, et à quel prix maximum faire une offre. L'outil coûte 0 € à faire tourner, fonctionne sans clé d'IA, s'utilise en français sur ordinateur et téléphone via une URL permanente. Montants en euros, unités métriques.
+Contrainte de marché à intégrer dès la conception : les grands portails d'annonces français n'offrent pas d'API publique gratuite et leurs conditions interdisent la collecte automatisée. L'application ne collecte donc pas d'annonces toute seule. Elle fait trois choses, et seulement celles-ci :
+1. Radar de marché — sur une zone dessinée, classer les communes par rendement brut théorique calculé à partir de données publiques (prix DVF, loyers de la carte des loyers), pour savoir où chercher.
+2. Analyse d'annonce — l'utilisateur saisit une annonce en moins de 60 secondes (5 champs obligatoires) ou l'importe en CSV ; l'application l'enrichit automatiquement (géocodage, comparables DVF, loyer de marché, DPE, risques, encadrement des loyers) et calcule cash-flow, rendements et prix d'offre maximal.
+3. Suivi de décision — statut, notes, historique des prix, checklist de vérification, comparaison de 2 à 4 biens.
+Critères de succès de la V1 :
+• moins de 60 s de saisie et moins de 5 s pour afficher le verdict enrichi (données en cache) ;
+• 0 € de fonctionnement dans les limites des offres gratuites ;
+• 4 écrans au maximum ;
+• chaque chiffre affiché indique son origine : déclaré, vérifié, estimé ou hypothèse.
+Zone initiale : Île-de-France. Le modèle doit fonctionner pour toute la France sans refonte ; signaler que DVF ne couvre ni l'Alsace-Moselle ni Mayotte.
+Règles de travail : pour une ambiguïté non bloquante, décide, note la décision dans DECISIONS.md et continue. Ne déclare jamais une opération exécutée, une donnée collectée ou un déploiement réussi sans l'avoir vérifié. Une fonction inachevée n'apparaît pas dans l'interface. Une application plus petite et juste vaut mieux qu'une application large et approximative.
+2. Principes de fiabilité
+Quatre règles suffisent ; elles s'appliquent à tout l'outil.
+Statut de chaque donnée d'entrée. Chaque champ qui entre dans un calcul (prix, surface, loyer, charges, taxe foncière, travaux, DPE, CA, EBE…) est stocké sous la forme { valeur, statut, source, date }, avec un statut parmi :
+Statut
+Sens
+Exemple
+Déclaré
+Lu dans l'annonce ou dit par le vendeur
+Loyer « 1 100 € HC » dans l'annonce
+Vérifié
+Confirmé par un justificatif
+Avis de taxe foncière reçu
+Estimé
+Calculé par l'outil depuis une source publique, méthode affichée
+Loyer de marché issu de la carte des loyers
+Hypothèse
+Saisi par l'utilisateur ou valeur par défaut du profil
+Vacance 5 %
+Inconnu
+Absent
+—
+L'interface affiche ce statut par une pastille sur chaque chiffre. Une valeur inconnue reste inconnue : un indicateur qui en dépend s'affiche « non calculable » avec la liste des champs manquants. Une valeur par défaut du profil est toujours visible et étiquetée « hypothèse », jamais cachée dans un calcul.
+Calcul déterministe. Tous les calculs financiers sont des fonctions TypeScript pures dans lib/finance/, sans appel réseau ni modèle de langage, couvertes par les tests de la section 10. Chaque indicateur affiché propose un lien « Comment c'est calculé » qui montre la formule et les valeurs utilisées.
+Transparence des sources publiques. Chaque jeu de données externe conserve sa source, son URL, son millésime (période décrite) et sa date de récupération. Une source en erreur s'affiche « indisponible », jamais « 0 résultat ». Une source qui demande une clé s'affiche « à configurer » tant qu'elle n'a pas répondu une fois.
+Droits d'usage. N'utiliser que des données ouvertes, des API publiques et les saisies ou imports de l'utilisateur. Ne pas lire automatiquement les pages d'annonces, ne pas contourner de protection, ne pas copier les photos : stocker seulement l'URL de l'annonce. L'utilisateur peut coller le texte de l'annonce pour son usage personnel.
+3. Stack et contraintes techniques
+Une stack gratuite, sans serveur à administrer, choisie pour être rapide à livrer et simple à sauvegarder.
+Brique
+Choix
+Raison
+Application
+Next.js (App Router) + TypeScript, Tailwind, shadcn/ui
+Une seule base de code front et API
+Base et authentification
+Supabase offre gratuite : Postgres, Auth par lien magique, Row Level Security
+Persistance réelle, accès privé contrôlé en base
+Hébergement
+Vercel offre Hobby (usage personnel)
+URL permanente, déploiement par Git
+Carte
+Leaflet + fond Plan IGN de la Géoplateforme (sans clé), outil de dessin Leaflet-Geoman (version libre)
+Gratuit, fonds français à jour
+Géospatial
+Zones en GeoJSON (WGS84, EPSG:4326) stockées en jsonb, test point-dans-polygone avec Turf.js
+Pas besoin de PostGIS pour quelques milliers de points
+Validation et CSV
+Zod, Papaparse
+Entrées validées côté client et serveur
+Tests
+Vitest pour le moteur financier ; un test Playwright du parcours principal si l'environnement le permet
+Le risque principal est dans les calculs
+Contraintes :
+• Fixe des versions stables et vérifie l'API réelle des bibliothèques installées avant de les utiliser.
+• Aucun secret côté client ; la clé de service Supabase reste côté serveur. Chaque table porte un user_id et une politique RLS ; les autorisations ne reposent jamais sur le masquage d'un bouton.
+• Les appels aux sources publiques passent par des routes serveur avec délai d'attente (8 s), cache en base et limite de débit. Une zone est limitée à 30 communes pour rester rapide ; au-delà, demander de la réduire.
+• Documente dans le README que les projets Supabase gratuits sont mis en pause après une période d'inactivité (à vérifier dans les conditions en vigueur) et comment les réactiver ; d'où l'export de sauvegarde de la section 4.
+• Aucune IA n'est requise. Une extraction assistée du texte d'annonce par un modèle de langage peut être ajoutée plus tard, désactivée par défaut, et ses résultats arrivent toujours avec le statut « déclaré » à confirmer.
+4. Parcours utilisateur et écrans
+Le parcours central tient en trois gestes : choisir où chercher, ajouter une annonce, lire le verdict. Quatre écrans, pas de tableau de bord séparé : la liste triée en tient lieu.
+Ajout rapide (bouton « + Bien » visible partout). Cinq champs obligatoires : type d'actif, prix demandé, surface, adresse ou commune, URL de l'annonce. Champs optionnels repliables : loyer, charges de copropriété, taxe foncière, DPE, travaux estimés, nombre de lots, zone de texte pour coller la description. À l'enregistrement, l'enrichissement se lance automatiquement. Si l'URL existe déjà, proposer d'ajouter une nouvelle observation de prix au bien existant plutôt que de le dupliquer. Si un bien de même adresse et de surface proche (à 5 % près) existe, afficher « doublon possible » et laisser l'utilisateur décider ; ne jamais fusionner automatiquement.
+1. Carte et liste — écran d'accueil. Bascule entre deux couches :
+    ◦ Marché : les communes de la zone dessinée colorées par rendement brut théorique (loyer de marché × 12 / prix médian DVF au m²), avec nombre de ventes et millésime au survol ; une commune avec moins de 10 ventes sur 24 mois est grisée « données insuffisantes ».
+    ◦ Mes biens : marqueurs regroupés, liés à une liste triable (cash-flow prudent, prix d'offre maximal, écart au marché, confiance, statut, date d'ajout). Filtres limités à : zone, type d'actif, statut, verdict, budget maximal.
+    ◦ Dessin, renommage et suppression de zones nommées, enregistrées en base.
+2. Fiche bien — en-tête de verdict (section 8), puis quatre onglets : Analyse (entrées modifiables avec pastille de statut, scénarios prudent / central / favorable, sensibilité), Marché (comparables DVF, loyer de marché, encadrement, DPE, risques), Vérifications (checklist), Suivi (statut, notes, historique des prix, motif de rejet). Une vue imprimable d'une page sert de fiche pour un banquier ou un associé.
+3. Comparateur — 2 à 4 biens côte à côte sur les mêmes indicateurs, écarts mis en évidence.
+4. Réglages — profils d'investissement, import CSV (aperçu, association des colonnes, rapport d'erreurs ligne par ligne, aucune écriture si l'utilisateur n'a pas confirmé), export CSV des biens, sauvegarde et restauration JSON complètes, état des sources publiques.
+Statuts de suivi : À analyser, À visiter, Offre faite, Rejeté (avec motif), Acquis, Archivé. Un nouveau prix sur un bien existant crée une observation datée ; l'ancien prix reste visible et la baisse est signalée. Les notes et statuts ne sont jamais modifiés par un import.
+Profils d'investissement. Plusieurs profils nommés, modifiables sans code : types d'actifs, budget maximal, apport disponible, taux et durée de crédit, assurance emprunteur, frais de notaire par défaut, vacance, gestion, régime fiscal et TMI, revenus et charges de crédit existantes du foyer (optionnels, pour le taux d'endettement), cash-flow cible. Trois profils préremplis : Locatif résidentiel, Murs commerciaux, Reprise de fonds de commerce ; leurs valeurs par défaut sont étiquetées « hypothèse ».
+5. Données de marché (sources ouvertes)
+Six sources gratuites, sans clé, suffisent à la V1. Avant d'implémenter chaque appel, vérifie l'URL, le schéma et les limites en vigueur, et documente-les dans docs/sources.md.
+Source
+Usage dans l'outil
+Point de vigilance
+DVF géolocalisées (Etalab) — fichiers CSV par année et par commune
+Comparables de vente, prix médian au m² par commune pour le radar
+Une ligne par lot, pas par vente : regrouper par id_mutation. Publication semestrielle avec plusieurs mois de retard. Absent en Alsace-Moselle et à Mayotte.
+Carte des loyers ANIL, édition 2025
+Loyer de marché estimé par commune (appartement, maison)
+Loyers d'annonce, charges comprises, logements non meublés, calculés pour un bien type. Utiliser l'intervalle de prédiction et le nombre d'observations du fichier ; signaler quand l'indicateur vient d'une maille plus large que la commune.
+DPE logements existants (ADEME)
+Proposer le ou les DPE enregistrés à l'adresse
+Ne couvre que les DPE depuis juillet 2021. Afficher les candidats (même adresse, surface à ±10 %) et laisser l'utilisateur confirmer.
+Géocodage de la Géoplateforme (IGN)
+Adresse → coordonnées et code INSEE
+Conserver le score de géocodage ; sous 0,6, demander confirmation sur la carte.
+Géorisques
+Risques naturels et technologiques au point
+Liste factuelle, sans note de risque inventée.
+Encadrement des loyers
+Plafond légal du loyer là où il s'applique (en Île-de-France : Paris, Plaine Commune, Est Ensemble)
+Utiliser les données ouvertes quand elles existent ; sinon champ « loyer de référence majoré » saisi par l'utilisateur.
+Règles DVF pour les comparables résidentiels.
+• Ne retenir que les mutations de nature « Vente » portant sur un seul local du type visé (Appartement ou Maison), dépendances acceptées. Exclure les ventes de plusieurs logements, qui faussent le prix au m².
+• Prix au m² = valeur foncière / surface réelle bâtie. Exclure les valeurs aberrantes (hors 1er–99e centile de la commune).
+• Périmètre par défaut : 24 mois, 500 m autour du bien, surface à ±30 %. Si moins de 8 ventes, élargir à 1 km puis à la commune, en l'affichant. Sous 5 ventes, ne pas estimer : afficher « comparables insuffisants ».
+• Afficher la médiane, l'intervalle P25–P75, le nombre de ventes et la période couverte, ainsi que l'écart du prix demandé à la médiane. Une annonce n'est jamais un comparable de vente.
+• Pour les locaux commerciaux, DVF est peu fiable (surfaces souvent absentes) : afficher les ventes trouvées à titre indicatif, sans estimation.
+Loyer de marché. Convertir l'indicateur charges comprises en hors charges en retirant les charges récupérables saisies ou un paramètre en €/m² étiqueté « hypothèse ». Rappeler que l'indicateur vise un bien type et sous-estime souvent le loyer au m² des petites surfaces. Le loyer retenu dans le scénario prudent est le plus bas entre loyer déclaré, borne basse de l'intervalle de marché et plafond d'encadrement.
+Cache. Stocker chaque fichier ou réponse par commune et millésime dans market_cache ; ne recharger que sur demande ou si le millésime publié change. L'enrichissement d'un bien déjà en cache ne fait aucun appel externe.
+6. Moteur financier immobilier
+Le moteur répond à trois questions dans cet ordre : combien ça coûte, combien ça rapporte chaque mois après crédit, et à quel prix l'opération atteint l'objectif. Toutes les fonctions sont pures, dans lib/finance/, avec les cas de test de la section 10.
+6.1 Coût total du projet. Prix + frais de notaire + honoraires d'agence à la charge de l'acquéreur s'ils ne sont pas inclus + travaux + frais bancaires (dossier, garantie, courtage) + mobilier si location meublée. Chaque poste est une ligne visible ; une case « honoraires inclus dans le prix » évite le double comptage. Les frais de notaire sont un taux paramétrable par profil (ancien / neuf), étiqueté « hypothèse », car les droits de mutation varient selon le département et la date.
+6.2 Revenus. Loyer mensuel hors charges, par lot si plusieurs lots, avec son statut (déclaré, bail vérifié, marché estimé). Revenu effectif annuel = loyer HC × 12 × (1 − vacance). Les provisions pour charges récupérables ne sont pas un revenu.
+6.3 Charges d'exploitation non récupérables. Taxe foncière, part non récupérable des charges de copropriété (si seul le total est connu : part récupérable paramétrable, étiquetée hypothèse), assurance PNO, gestion en % des loyers, provision d'entretien, garantie loyers impayés optionnelle. Résultat net d'exploitation (RNE) = revenu effectif − charges.
+6.4 Rendements. Rendement brut = loyer HC annuel théorique / prix d'achat. Rendement net d'exploitation = RNE / coût total du projet, avant financement et avant impôt. L'interface affiche le dénominateur de chacun.
+6.5 Crédit. Mensualité hors assurance, au taux nominal (jamais le TAEG) :
+M = C \cdot \frac{i}{1-(1+i)^{-n}}, \quad i = \frac{\text{taux nominal annuel}}{12}, \quad M = \frac{C}{n} \text{ si } i = 0
+Capital emprunté C = coût total − apport. Assurance emprunteur calculée à part (taux annuel sur capital initial par défaut, ou sur capital restant dû, au choix). Tableau d'amortissement disponible dans la fiche.
+6.6 Cash-flow mensuel. Trois lignes distinctes, jamais confondues :
+• avant financement = RNE / 12 ;
+• après crédit, avant impôt = (RNE − mensualités × 12 − assurance emprunteur annuelle) / 12 ;
+• après impôt, année 1 = ligne précédente − impôt estimé / 12, seulement si un régime fiscal et une TMI sont renseignés.
+6.7 Fiscalité simplifiée (année 1). Quatre régimes : micro-foncier, réel foncier, LMNP micro-BIC, LMNP réel. Impôt = base imposable × (TMI + taux de prélèvements sociaux). Au réel foncier, les intérêts et l'assurance emprunteur sont déductibles ; en LMNP réel, ajouter un amortissement linéaire par composant (bâti hors terrain, travaux, mobilier) qui ne peut pas créer de déficit. Abattements, plafonds, taux et durées vivent dans un seul fichier lib/finance/fiscal-params.ts daté et sourcé ; vérifie leurs valeurs en vigueur sur les sites officiels avant de les écrire. L'écran affiche « estimation simplifiée, à valider avec un conseil » et n'intègre ni report pluriannuel de déficit ni fiscalité de revente.
+6.8 Finançabilité (optionnelle). Si le profil contient les revenus nets mensuels du foyer et ses mensualités existantes : taux d'endettement = (mensualités existantes + nouvelle mensualité assurance comprise) / (revenus + 70 % des loyers). Comparer au plafond de 35 % et à la durée maximale de 25 ans recommandés par le HCSF ; ces deux seuils et la pondération des loyers sont des paramètres.
+6.9 Prix d'offre maximal. Fonction clé pour la négociation : trouver par dichotomie le prix P tel que le cash-flow mensuel avant impôt du scénario prudent égale le cash-flow cible du profil, en recalculant tout ce qui dépend de P (frais de notaire, capital emprunté à apport constant). Afficher aussi l'écart en % au prix demandé. Si aucun prix positif n'atteint la cible, afficher « objectif inatteignable avec ces hypothèses ».
+6.10 Scénarios et sensibilité. Trois scénarios issus de paramètres visibles et modifiables dans le profil :
+Paramètre
+Prudent
+Central
+Favorable
+Loyer
+Minimum de : déclaré, borne basse marché, plafond encadrement
+Déclaré ou marché central
+Déclaré
+Vacance
+Central + 5 points
+Profil
+Central − 2 points (minimum 0)
+Travaux
+Central + 20 %
+Saisi
+Saisi
+Taux de crédit
+Central + 0,5 point
+Profil
+Profil
+Ajouter deux seuils de bascule calculés : loyer minimal pour un cash-flow nul, taux de crédit maximal pour un cash-flow nul. Ajouter un indicateur d'enrichissement à 10 ans = capital remboursé cumulé + cash-flows cumulés avant impôt, sans hypothèse de revente.
+7. Murs commerciaux et fonds de commerce
+Les murs commerciaux réutilisent le moteur de la section 6 avec des champs de bail ; le fonds de commerce a son propre modèle, car il achète une capacité bénéficiaire, pas un loyer. Ne jamais appliquer un rendement locatif à un fonds.
+7.1 Murs commerciaux. Champs supplémentaires : local libre ou loué, loyer contractuel HT, indice d'indexation (ILC ou ILAT), date de fin de bail et prochaine échéance triennale, refacturation de la taxe foncière et des charges prévue au bail (oui / non / inconnu), dépôt de garantie, activité du locataire, régime de TVA (à vérifier). Le scénario prudent applique une vacance de 12 mois à la prochaine échéance du bail, un loyer de relocation égal au plus bas entre loyer actuel et loyer de marché saisi, et les travaux de remise en état saisis. Afficher « locataire unique » comme risque de concentration. Un bail loué reste un revenu à risque : son statut reste « déclaré » tant que le bail n'est pas joint.
+7.2 Fonds de commerce — entrées. Prix de cession (case : stock inclus ou non), chiffre d'affaires et EBE comptable sur 3 exercices, rémunération du cédant déjà comptabilisée, rémunération cible du repreneur charges comprises, loyer et charges annuels, durée restante et destination du bail, effectif et masse salariale, stock, investissements initiaux, investissements annuels de maintien, BFR initial (saisi, avec une aide de calcul : stocks + créances clients − dettes fournisseurs), apport, prêt. CA et EBE restent « déclarés » tant que les liasses fiscales ne sont pas jointes.
+7.3 Fonds de commerce — calculs.
+• Frais d'acquisition : droits d'enregistrement selon le barème progressif des cessions de fonds (paramètres datés dans fiscal-params.ts, à vérifier) + honoraires saisis.
+• Besoin total de financement = prix + frais + stock non inclus + investissements initiaux + BFR initial.
+• EBE retraité = EBE comptable + rémunération du cédant comptabilisée − rémunération cible du repreneur ± retraitements saisis ligne par ligne, chacun avec son justificatif attendu.
+• Ratios : évolution du CA, EBE / CA, loyer / CA, masse salariale / CA, prix / CA, prix / EBE retraité. Les ratios sont descriptifs ; aucun multiple « de marché » n'est affiché sans comparables documentés par l'utilisateur.
+• Couverture de la dette = (EBE retraité − investissements de maintien) / annuité d'emprunt. Trésorerie annuelle après rémunération et dette = EBE retraité − maintien − annuité, avant impôt sur les bénéfices.
+• Point mort : CA minimal pour une trésorerie nulle, à taux de marge sur coûts variables saisi.
+• Scénarios : CA − 10 % et − 20 % à charges fixes constantes.
+L'acquisition de titres de société et le scénario combiné murs + fonds sont hors périmètre V1 : si l'utilisateur choisit ces types, afficher « analyse juridique, comptable et fiscale dédiée nécessaire » sans calcul.
+8. Verdict, confiance et vérifications
+Pas de score sur 100 : un verdict lisible, quatre chiffres et un niveau de confiance remplacent un indice composite dont les pondérations seraient arbitraires.
+En-tête de chaque fiche : cash-flow mensuel prudent avant impôt, prix d'offre maximal et écart au prix demandé, écart du prix au m² à la médiane DVF, niveau de confiance. Pour un fonds de commerce : couverture de la dette, trésorerie après dette, prix / EBE retraité, confiance.
+Verdict (règles paramétrables dans le profil) :
+Verdict
+Règle par défaut
+À visiter
+Cash-flow prudent ≥ cible, aucun point bloquant, confiance A ou B
+À négocier
+Cible atteinte seulement sous le prix demandé, avec un écart ≤ 10 %
+Hors critères
+Écart > 10 %, budget dépassé ou point bloquant
+Données insuffisantes
+Cash-flow non calculable ou confiance C
+Points bloquants et alertes (locatif résidentiel). DPE G : bloquant « location interdite pour un nouveau bail », sauf si des travaux de rénovation sont saisis. DPE F : alerte « interdiction de louer au 1er janvier 2028 et gel des loyers ». DPE E : alerte pour 2034. Pour un DPE antérieur à 2026 d'un logement chauffé à l'électricité, signaler qu'un reclassement est possible depuis le changement de coefficient de conversion du 1er janvier 2026. Loyer supérieur au plafond d'encadrement : bloquant. Risques Géorisques notables : alerte. Le calendrier et les seuils sont des paramètres datés.
+Confiance. Champs clés : loyer, taxe foncière, charges de copropriété, travaux (pour un fonds : CA, EBE, loyer, BFR).
+• A : aucun champ clé en hypothèse ou inconnu, et au moins 8 comparables DVF.
+• C : loyer en hypothèse ou inconnu, ou au moins deux champs clés en hypothèse, ou moins de 5 comparables.
+• B : tous les autres cas.
+La liste est triée par verdict, puis cash-flow prudent, puis confiance : un bien rentable sur hypothèses fragiles passe derrière un bien documenté.
+Checklist de vérification (onglet Vérifications). Liste fixe par type d'actif, chaque ligne à l'état à faire / OK / problème, avec une note. Cocher « OK » sur un justificatif propose de passer le champ correspondant au statut « vérifié ».
+• Résidentiel : DPE et sa date ; trois derniers PV d'assemblée générale et travaux votés ; relevé annuel de charges ; avis de taxe foncière ; diagnostics ; bail et quittances si loué ; règlement de copropriété (usage, meublé) ; règles d'urbanisme si travaux ou division.
+• Murs commerciaux : bail complet et avenants ; relevés de charges refacturées ; santé financière du locataire ; état des lieux ; gros travaux à la charge du bailleur.
+• Fonds de commerce : trois dernières liasses fiscales ; CA mensuel ; bail et conditions de cession du bail ; registre du personnel et contrats ; absence de procédure collective (BODACC) ; licences et autorisations ; inventaire du matériel.
+9. Modèle de données minimal
+Sept tables suffisent ; les scénarios ne sont pas stockés, ils sont recalculés à l'affichage à partir des entrées et du profil, ce qui garantit leur reproductibilité.
+Table
+Contenu
+Accès
+profiles
+Nom, types d'actifs, paramètres financiers et fiscaux, cible de cash-flow, règles de verdict (jsonb validé par Zod)
+Propriétaire
+zones
+Nom, polygone GeoJSON (EPSG:4326), codes INSEE des communes intersectées
+Propriétaire
+properties
+Type d'actif, adresse, code INSEE, coordonnées et score de géocodage, URL et URL normalisée (unique par utilisateur), profil associé, entrées { valeur, statut, source, date } en jsonb, statut de suivi, motif de rejet, notes, état de la checklist, instantanés d'analyse figés
+Propriétaire
+price_observations
+Bien, date, prix, origine (saisie ou import)
+Propriétaire
+dvf_sales
+Ventes DVF filtrées (identifiant de mutation, date, prix, type, surface, pièces, coordonnées, code INSEE, millésime) ; seulement les colonnes utiles
+Lecture pour tout utilisateur connecté, écriture serveur
+market_cache
+Autres réponses externes par source, commune et millésime ; URL, date de récupération, statut de la dernière tentative et message d'erreur
+Lecture pour tout utilisateur connecté, écriture serveur
+import_jobs
+Fichier, lignes acceptées et rejetées, erreurs ligne par ligne
+Propriétaire
+Règles :
+• Index sur properties(user_id, statut), properties(user_id, url_normalisee), price_observations(property_id, date), dvf_sales(code_insee, date).
+• Quand un bien passe au statut « Offre faite », figer une copie de l'analyse (entrées, paramètres, résultats, version du moteur) pour pouvoir relire plus tard ce qui a justifié l'offre.
+• Migrations SQL versionnées dans supabase/migrations/, avec les politiques RLS dans les mêmes fichiers.
+• Sauvegarde : export JSON de toutes les tables du propriétaire en un clic ; restauration idempotente (rejouer deux fois le même fichier ne crée pas de doublons). Export CSV des biens avec leurs indicateurs et la source de chaque valeur.

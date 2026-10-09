@@ -31,7 +31,8 @@ vérifie que tout répond. Vous n'avez qu'à créer deux comptes gratuits et cop
    de votre organisation Supabase).
 2. Créez l'organisation proposée (offre **Free**). Inutile de créer un projet : le déploiement s'en charge.
 3. Menu de votre avatar → **Account preferences** → **Access Tokens** → **Generate new token** → nommez-le
-   `sentinel-deploy` → copiez le jeton (`sbp_…`).
+   `sentinel-deploy`, donnez-lui accès à **toutes les organisations et tous les projets** (accès complet ; un jeton
+   « à portée limitée » ne peut pas créer le projet) → copiez le jeton (`sbp_…`).
 
 ### 1.2 Compte Vercel (hébergement)
 

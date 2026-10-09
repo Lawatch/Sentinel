@@ -208,7 +208,22 @@ if (!appUrl) die('URL de production introuvable.');
 /* ------------------------------------------------------------------ */
 /* 3. Supabase Auth                                                    */
 /* ------------------------------------------------------------------ */
-await sb('PATCH', `/v1/projects/${ref}/config/auth`, { site_url: appUrl, uri_allow_list: `${appUrl}/**` });
+// Réglages d'authentification : appliqués puis relus (l'API peut répondre 200 avant de les avoir pris en compte).
+async function ensureAuth(wanted, label) {
+  for (let attempt = 1; attempt <= 8; attempt++) {
+    const patched = await sb('PATCH', `/v1/projects/${ref}/config/auth`, wanted);
+    await sleep(attempt === 1 ? 3000 : 10000);
+    const current = await sb('GET', `/v1/projects/${ref}/config/auth`);
+    const diff = Object.keys(wanted).filter((k) => current?.[k] !== wanted[k]);
+    if (!diff.length) return current;
+    console.log(
+      `  ${label} : pas encore appliqué (essai ${attempt}) — réponse PATCH ${JSON.stringify(Object.fromEntries(diff.map((k) => [k, patched?.[k]])))}, ` +
+        `lu ${JSON.stringify(Object.fromEntries(diff.map((k) => [k, current?.[k]])))}`,
+    );
+  }
+  die(`Réglage d’authentification « ${label} » non appliqué par Supabase après plusieurs essais.`);
+}
+await ensureAuth({ site_url: appUrl, uri_allow_list: `${appUrl}/**` }, 'URL du site');
 // Modèle d'e-mail en français (lien + code) : refusé sur l'offre gratuite sans SMTP personnel. L'e-mail par défaut
 // de Supabase (lien seul) fonctionne avec /auth/callback.
 const template = readFileSync(path.join(ROOT, 'supabase/templates/magic_link.html'), 'utf8');
@@ -231,8 +246,7 @@ if (!list.users.some((u) => u.email?.toLowerCase() === owner)) {
   summary(`- Compte créé pour ${owner}.`);
 } else summary(`- Compte ${owner} déjà présent.`);
 // Outil personnel : plus aucune inscription possible une fois le propriétaire créé.
-await sb('PATCH', `/v1/projects/${ref}/config/auth`, { disable_signup: true });
-const auth = await sb('GET', `/v1/projects/${ref}/config/auth`);
+const auth = await ensureAuth({ disable_signup: true }, 'inscriptions fermées');
 summary(`- Auth : site ${auth.site_url}, redirections « ${auth.uri_allow_list} », inscriptions ${auth.disable_signup ? 'fermées' : 'ouvertes'}.`);
 
 /* ------------------------------------------------------------------ */
@@ -248,6 +262,10 @@ for (let i = 0; i < 12 && !appOk; i++) {
 const db = await admin.from('profiles').select('id', { count: 'exact', head: true });
 summary(`- Vérification de l’application (${appUrl}/login) : ${appOk ? 'OK' : 'ÉCHEC'}`);
 summary(`- Vérification de la base (table profiles) : ${db.error ? `ÉCHEC (${db.error.message})` : 'OK'}`);
+const live = await fetch(`${supabaseUrl}/auth/v1/settings`, { headers: { apikey: publicKey } })
+  .then((r) => (r.ok ? r.json() : null))
+  .catch(() => null);
+summary(`- Vérification du service de connexion : ${live ? `inscriptions ${live.disable_signup ? 'fermées' : 'OUVERTES'}` : 'injoignable'}`);
 if (!appOk || db.error) die('Vérifications finales en échec.');
-summary(`\n### ✅ Application en ligne : ${appUrl}\n\nConnectez-vous avec ${owner} : vous recevrez un lien et un code à 6 chiffres.${mailWarning ? `\n\n${mailWarning}` : ''}`);
+summary(`\n### ✅ Application en ligne : ${appUrl}\n\nConnectez-vous avec ${owner} : vous recevrez un lien de connexion par e-mail.${mailWarning ? `\n\n${mailWarning}` : ''}`);
 if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `url=${appUrl}\n`);

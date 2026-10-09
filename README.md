@@ -53,8 +53,12 @@ Facultatif : `VERCEL_TEAM_ID` si votre jeton Vercel vise une équipe plutôt que
 
 ### 1.4 Lancer le déploiement
 
-**Actions → Déploiement → Run workflow** (ou poussez un commit sur `main`). En 5 à 10 minutes, le résumé du workflow
-affiche **« ✅ Application en ligne : https://… »**. Ouvrez cette adresse, saisissez votre e-mail : vous recevez un
+Dans l'onglet **Actions** du dépôt → workflow **Déploiement** :
+
+- si le code est sur la branche `main` : bouton **Run workflow** (ou poussez simplement un commit sur `main`) ;
+- sinon : ouvrez la dernière exécution du workflow → **Re-run all jobs** (elle relit les secrets que vous venez d'ajouter).
+
+En 5 à 10 minutes, le résumé du workflow affiche **« ✅ Application en ligne : https://… »**. Ouvrez cette adresse, saisissez votre e-mail : vous recevez un
 lien et un code à 6 chiffres. Ajoutez l'URL à l'écran d'accueil de votre téléphone pour l'ouvrir comme une application.
 
 Ce que fait le workflow (`scripts/deploy/provision.mjs`) :

@@ -526,7 +526,7 @@ function analyzeRental(input: AnalyzeInput): RentalAnalysis {
         cf_apres_credit: indicator(r.cf_apres_credit, '(RNE − mensualités × 12 − assurance emprunteur annuelle) / 12', [
           { label: 'RNE', valeur: r.rne, unite: '€/an' },
           { label: 'Capital emprunté (coût total − apport)', valeur: r.capital, unite: '€' },
-          { label: `Mensualité hors assurance (${(n.taux_credit * 100).toFixed(2)} %, ${n.duree_mois} mois)`, valeur: r.mensualite, unite: '€/mois', statut: h.taux.statut },
+          { label: `Mensualité hors assurance (${fr(n.taux_credit * 100)} %, ${n.duree_mois} mois)`, valeur: r.mensualite, unite: '€/mois', statut: h.taux.statut },
           { label: 'Assurance emprunteur annuelle', valeur: r.assurance_annuelle, unite: '€/an', statut: 'hypothese' },
         ]),
         cf_apres_impot: tax
@@ -692,7 +692,7 @@ function analyzeRental(input: AnalyzeInput): RentalAnalysis {
   }
   if (endettement?.ok) {
     if (endettement.valeur > p.hcsf.taux_max)
-      alertes.push({ niveau: 'alerte', message: `Taux d’endettement ${(endettement.valeur * 100).toFixed(1)} % supérieur au plafond HCSF de ${p.hcsf.taux_max * 100} %.` });
+      alertes.push({ niveau: 'alerte', message: `Taux d’endettement ${fr(endettement.valeur * 100, 1)} % supérieur au plafond HCSF de ${fr(p.hcsf.taux_max * 100, 0)} %.` });
   }
   if (p.duree_credit_mois > p.hcsf.duree_max_mois)
     alertes.push({ niveau: 'alerte', message: `Durée de crédit supérieure aux ${p.hcsf.duree_max_mois / 12} ans recommandés par le HCSF.` });
@@ -821,12 +821,12 @@ export function verdictOf(x: {
   if (x.confiance === 'C') return { verdict: 'donnees_insuffisantes', raisons: ['Confiance C : hypothèses trop fragiles pour conclure'] };
   if (x.cf.valeur >= x.cible - 1e-9) return { verdict: 'a_visiter', raisons: ['Cash-flow prudent ≥ cible, aucun point bloquant'] };
   if (x.offre?.atteignable && x.offre.ecart !== undefined && x.offre.ecart >= -x.ecartMax - 1e-12)
-    return { verdict: 'a_negocier', raisons: [`Cible atteinte à ${(x.offre.ecart * 100).toFixed(1)} % sous le prix demandé`] };
+    return { verdict: 'a_negocier', raisons: [`Cible atteinte à ${fr(Math.abs(x.offre.ecart * 100), 1)} % sous le prix demandé`] };
   return {
     verdict: 'hors_criteres',
     raisons: [
       x.offre?.atteignable
-        ? `Cible atteinte seulement à ${(x.offre.ecart! * 100).toFixed(1)} % du prix demandé (au-delà de ${x.ecartMax * 100} %)`
+        ? `Cible atteinte seulement ${fr(Math.abs(x.offre.ecart! * 100), 1)} % sous le prix demandé (au-delà de ${fr(x.ecartMax * 100, 0)} %)`
         : 'Objectif inatteignable avec ces hypothèses',
     ],
   };
@@ -1010,7 +1010,7 @@ function analyzeFonds(input: AnalyzeInput): FondsAnalysis {
   else if (prudentScen.tresorerie >= p.cash_flow_cible * 12 && prudentScen.couverture >= p.verdict.couverture_min_fonds)
     verdict = { verdict: 'a_visiter', raisons: [`CA −10 % : trésorerie ≥ cible et couverture ≥ ${p.verdict.couverture_min_fonds}`] };
   else if (offreRes.atteignable && offreRes.ecart >= -p.verdict.ecart_max_negociation)
-    verdict = { verdict: 'a_negocier', raisons: [`Cible atteinte à ${(offreRes.ecart * 100).toFixed(1)} % sous le prix demandé`] };
+    verdict = { verdict: 'a_negocier', raisons: [`Cible atteinte à ${fr(Math.abs(offreRes.ecart * 100), 1)} % sous le prix demandé`] };
   else verdict = { verdict: 'hors_criteres', raisons: ['Trésorerie ou couverture insuffisantes au prix demandé'] };
   if (budgetDepasse) alertes.push({ niveau: 'bloquant', message: `Prix supérieur au budget maximal (${p.budget_max} €).` });
   return {

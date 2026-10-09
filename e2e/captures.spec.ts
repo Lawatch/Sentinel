@@ -29,6 +29,10 @@ test('captures desktop et mobile', async ({ page, browser }) => {
   await dump(page, 'reglages');
   await page.goto('/');
   await page.getByTestId('liste-biens').waitFor();
+  // Attendre le chargement effectif des tuiles du Plan IGN.
+  await page.locator('.leaflet-tile-loaded').first().waitFor({ timeout: 20_000 }).catch(() => {});
+  await page.waitForTimeout(2000);
+  console.log(`Tuiles IGN chargées : ${await page.locator('.leaflet-tile-loaded').count()}`);
   await dump(page, 'accueil');
   await page.getByRole('link', { name: /Appartement 48 m² — Montreuil/ }).click();
   await page.waitForURL(/\/biens\//);

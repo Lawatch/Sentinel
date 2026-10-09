@@ -22,8 +22,12 @@ import { createClient } from '@supabase/supabase-js';
 const env = process.env;
 const NAME = env.PROJECT_NAME || 'sentinel';
 const REGION = env.SUPABASE_REGION || 'eu-west-3';
-const SB = 'https://api.supabase.com';
-const VC = 'https://api.vercel.com';
+// Surcharges réservées aux tests du script (serveur d'API simulé, Supabase local).
+const SB = env.SUPABASE_API_URL || 'https://api.supabase.com';
+const VC = env.VERCEL_API_URL || 'https://api.vercel.com';
+const projectUrl = (ref) => env.SUPABASE_PROJECT_URL || `https://${ref}.supabase.co`;
+const VERCEL_CLI = env.VERCEL_CLI ? env.VERCEL_CLI.split(' ') : ['npx', '--yes', 'vercel@59.26.0'];
+const APP_SCHEME = env.APP_URL_SCHEME || 'https';
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
 const summary = (line) => {
   console.log(line);
@@ -100,7 +104,7 @@ for (let i = 0; i < 30; i++) {
   if (Array.isArray(h) && h.length && h.every((s) => s.status === 'ACTIVE_HEALTHY')) break;
   await sleep(5000);
 }
-summary(`- Supabase prêt : https://${ref}.supabase.co`);
+summary(`- Supabase prêt : ${projectUrl(ref)}`);
 
 // Migrations : suivies dans supabase_migrations.schema_migrations (compatible avec la CLI Supabase).
 const sql = (query) => sb('POST', `/v1/projects/${ref}/database/query`, { query });
@@ -123,7 +127,7 @@ const pick = (type, legacyName) => keys.find((k) => k.type === type)?.api_key ??
 const publicKey = pick('publishable', 'anon');
 const secretKey = pick('secret', 'service_role');
 if (!publicKey || !secretKey) die('Clés d’API Supabase introuvables.');
-const supabaseUrl = `https://${ref}.supabase.co`;
+const supabaseUrl = projectUrl(ref);
 
 /* ------------------------------------------------------------------ */
 /* 2. Vercel                                                           */
@@ -148,7 +152,7 @@ summary('- Variables d’environnement Vercel à jour.');
 summary('- Déploiement en production (build sur Vercel)…');
 let deployUrl;
 try {
-  const out = execFileSync('npx', ['--yes', 'vercel@59.26.0', 'deploy', '--prod', '--yes', `--token=${env.VERCEL_TOKEN}`], {
+  const out = execFileSync(VERCEL_CLI[0], [...VERCEL_CLI.slice(1), 'deploy', '--prod', '--yes', `--token=${env.VERCEL_TOKEN}`], {
     cwd: ROOT,
     env: { ...env, VERCEL_ORG_ID: orgId, VERCEL_PROJECT_ID: vproject.id, VERCEL_TELEMETRY_DISABLED: '1' },
     encoding: 'utf8',
@@ -161,7 +165,7 @@ try {
 }
 const domains = await vc('GET', `/v9/projects/${vproject.id}/domains?production=true`).catch(() => ({ domains: [] }));
 const prodDomain = domains.domains?.find((d) => d.name.endsWith('.vercel.app'))?.name ?? domains.domains?.[0]?.name;
-const appUrl = prodDomain ? `https://${prodDomain}` : deployUrl;
+const appUrl = prodDomain ? `${APP_SCHEME}://${prodDomain}` : deployUrl;
 if (!appUrl) die('URL de production introuvable.');
 
 /* ------------------------------------------------------------------ */

@@ -55,6 +55,11 @@ réellement (sortie dans le rapport final et dans la CI GitHub Actions).
 - Workflow `Déploiement` : provisionnement Supabase + Vercel automatisé, vérification de l'URL en ligne.
 - Il attend les trois secrets du dépôt (`SUPABASE_ACCESS_TOKEN`, `VERCEL_TOKEN`, `APP_OWNER_EMAIL`) : sans eux il
   s'arrête en l'expliquant. Voir le README, section 1.
+- Mise en ligne le 9 octobre 2026 : <https://sentinel-mocha-gamma.vercel.app>.
+- Corrections issues du premier déploiement réel : contrôle préalable des deux jetons ; création de l'organisation
+  Supabase si le compte n'en a pas ; message explicite pour un jeton Supabase « à portée limitée » ; modèle d'e-mail
+  refusé par l'offre gratuite non bloquant ; lien de connexion en flux implicite (`/auth/callback`), valable dans
+  n'importe quel navigateur ; réglages d'authentification relus jusqu'à application effective.
 
 ### Corrections apportées grâce aux tests réels
 

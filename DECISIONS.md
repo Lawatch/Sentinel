@@ -17,8 +17,11 @@ Ambiguïtés non bloquantes tranchées pendant la construction, avec leur raison
 
 ## Authentification
 
-5. **Lien magique + code à 6 chiffres** : le même e-mail contient les deux. Le code évite l'échec du lien quand l'e-mail
-   s'ouvre dans un autre navigateur que celui de la demande (cas fréquent sur téléphone).
+5. **Lien magique + code à 6 chiffres** : avec le modèle d'e-mail du projet (Supabase local, ou SMTP personnel), le
+   même e-mail contient les deux. L'offre gratuite de Supabase refuse toute modification du modèle sans SMTP personnel
+   (constaté au déploiement) : l'e-mail par défaut ne contient qu'un lien. Le lien est donc émis en **flux implicite**
+   (session dans le fragment d'URL, lue par `/auth/callback`) plutôt qu'en PKCE, pour qu'il fonctionne aussi ouvert dans
+   un autre navigateur que celui de la demande (messagerie du téléphone).
 6. **Outil personnel** : le déploiement crée le compte du propriétaire (`APP_OWNER_EMAIL`) puis **ferme les inscriptions**.
    `APP_OWNER_EMAILS` restreint aussi l'envoi du lien côté serveur.
 

@@ -18,9 +18,16 @@ justificatifs, multi-utilisateur, fonctions d'IA, INSEE / Sirene, BODACC automat
 
 ## 2. URL de l'application
 
-**Aucune URL n'est communiquée : le déploiement n'a pas encore eu lieu.** Le workflow `Déploiement` est prêt et testé
-(voir § 4), mais il a besoin de vos comptes Supabase et Vercel, que je ne peux pas créer à votre place. Ses trois
-dernières exécutions se sont arrêtées proprement avec le message « secrets manquants ».
+**<https://sentinel-mocha-gamma.vercel.app>**
+
+Déployée le 9 octobre 2026 par le workflow `Déploiement` (exécution 37935167849, commit `b9f0b51`), qui a vérifié en
+ligne : page de connexion servie, base joignable (table `profiles`), URL du site et redirections enregistrées dans
+Supabase, inscriptions fermées (relu sur le service de connexion lui-même). Projet Supabase `sentinel` en région Paris
+(`eu-west-3`), projet Vercel `sentinel` (offre Hobby).
+
+Connexion : saisissez votre adresse, puis cliquez sur le lien reçu par e-mail. L'offre gratuite de Supabase impose son
+e-mail par défaut (lien seul, en anglais) ; le lien fonctionne même ouvert dans un autre navigateur que celui de la
+demande (application de messagerie du téléphone).
 
 ## 3. État des sources (dernier appel réussi)
 
@@ -49,6 +56,8 @@ contrôle et date chaque résultat.
 - `npm run test:db` (Postgres 16 + migrations) : **9 sur 9** — dont T16 (B ne voit, ne modifie ni ne crée rien chez A),
   absence d'accès anonyme, unicité de l'URL, motif de rejet obligatoire.
 - `npm run test:live` (sources réelles) : **13 sur 13** (exécution 37926783747).
+- Lien magique de l'e-mail par défaut ouvert dans un navigateur neuf (`e2e/lien-magique.spec.ts`) : réussi, lien rejoué
+  refusé avec un message clair.
 - `npx playwright test` sur Supabase local, application construite : **10 sur 10** (exécution CI 37928958040 sur le commit
   `a86ed5d`, et en local) — connexion par code, ajout en 5 champs, verdict enrichi, « Comment c'est calculé », baisse
   de prix de 6,0 %, URL avec paramètres de suivi, import CSV sans écriture avant confirmation, enrichissement groupé,
@@ -77,7 +86,8 @@ Limites :
   données 2023 est une alerte, pas un blocage ; saisir le loyer de référence majoré en vigueur le rend décisif.
 - Murs commerciaux : DVF à titre indicatif ; loyer de marché à saisir.
 - E-mails de connexion : serveur intégré de Supabase, à débit limité et réservé aux membres de l'organisation Supabase
-  (d'où la consigne d'utiliser la même adresse).
+  (d'où la consigne d'utiliser la même adresse). Sur l'offre gratuite, le modèle d'e-mail n'est pas modifiable : e-mail
+  par défaut en anglais, lien seul (le code à 6 chiffres n'apparaît qu'avec un SMTP personnel).
 - Limite de débit en mémoire (suffisante pour un usage personnel).
 - `npm audit` signale 5 vulnérabilités « high » dans une dépendance de développement (`eslint-config-next` →
   `micromatch`), absente du code déployé.
@@ -91,9 +101,8 @@ commercial (Vercel Pro), ou le besoin d'un SMTP pour d'autres adresses (offres g
 
 ## 7. Actions restant à faire par l'utilisateur
 
-1. Créer un compte Supabase (avec l'adresse de connexion voulue) et un jeton d'accès.
-2. Créer un compte Vercel (via GitHub) et un jeton.
-3. Ajouter les secrets `SUPABASE_ACCESS_TOKEN`, `VERCEL_TOKEN`, `APP_OWNER_EMAIL` dans GitHub.
-4. Relancer le workflow **Déploiement** (README § 1.4) et ouvrir l'URL affichée.
-5. Recommandé : fusionner la branche dans `main` pour que chaque mise à jour se déploie automatiquement.
-6. Ensuite : faire une sauvegarde JSON de temps en temps (Réglages).
+1. Ouvrir <https://sentinel-mocha-gamma.vercel.app> et se connecter (lien reçu par e-mail).
+2. Recommandé : régénérer les jetons Supabase et Vercel (ils ont transité en clair dans une conversation), puis mettre
+   à jour les secrets GitHub `SUPABASE_ACCESS_TOKEN` et `VERCEL_TOKEN`. L'application en ligne n'en dépend pas.
+3. Recommandé : fusionner la branche dans `main` pour que chaque mise à jour se déploie automatiquement.
+4. Ensuite : faire une sauvegarde JSON de temps en temps (Réglages).

@@ -1,5 +1,7 @@
 # Sentinel — analyseur d'opportunités immobilières et commerciales
 
+**En ligne : <https://sentinel-mocha-gamma.vercel.app>**
+
 Application web personnelle qui dit en moins de deux minutes si une annonce mérite une visite, et à quel prix
 maximum faire une offre. Gratuite à faire tourner, sans clé d'IA, en français, sur ordinateur et téléphone.
 
@@ -59,8 +61,10 @@ Dans l'onglet **Actions** du dépôt → workflow **Déploiement** :
 - si le code est sur la branche `main` : bouton **Run workflow** (ou poussez simplement un commit sur `main`) ;
 - sinon : ouvrez la dernière exécution du workflow → **Re-run all jobs** (elle relit les secrets que vous venez d'ajouter).
 
-En 5 à 10 minutes, le résumé du workflow affiche **« ✅ Application en ligne : https://… »**. Ouvrez cette adresse, saisissez votre e-mail : vous recevez un
-lien et un code à 6 chiffres. Ajoutez l'URL à l'écran d'accueil de votre téléphone pour l'ouvrir comme une application.
+En 5 à 10 minutes, le résumé du workflow affiche **« ✅ Application en ligne : https://… »**. Ouvrez cette adresse,
+saisissez votre e-mail : vous recevez un lien de connexion (e-mail par défaut de Supabase, en anglais, « Magic Link » ;
+avec un SMTP personnel, l'e-mail en français contient aussi un code à 6 chiffres). Ajoutez l'URL à l'écran d'accueil de
+votre téléphone pour l'ouvrir comme une application.
 
 Ce que fait le workflow (`scripts/deploy/provision.mjs`) :
 
@@ -68,8 +72,8 @@ Ce que fait le workflow (`scripts/deploy/provision.mjs`) :
 - applique les migrations SQL de `supabase/migrations/` qui ne l'ont pas encore été (suivi dans
   `supabase_migrations.schema_migrations`) ;
 - crée (ou retrouve) le projet Vercel `sentinel`, y enregistre les variables d'environnement et déploie en production ;
-- configure l'authentification : URL du site, URL de redirection, modèle d'e-mail en français (lien + code), crée votre
-  compte puis **ferme les inscriptions** (outil personnel) ;
+- configure l'authentification : URL du site, URL de redirection, modèle d'e-mail en français (lien + code) si l'offre
+  le permet, crée votre compte puis **ferme les inscriptions** (outil personnel) ;
 - vérifie que la page de connexion et la base répondent.
 
 Il se relance à chaque push sur `main` : les nouvelles migrations sont appliquées et l'application redéployée.

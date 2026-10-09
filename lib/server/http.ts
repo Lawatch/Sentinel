@@ -44,7 +44,7 @@ export async function fetchSource(url: string, init: RequestInit & { timeoutMs?:
     const res = await fetch(url, {
       ...init,
       signal: AbortSignal.timeout(init.timeoutMs ?? SOURCE_TIMEOUT_MS),
-      headers: { 'user-agent': 'Sentinel/1.0 (outil personnel d’analyse immobilière)', ...(init.headers ?? {}) },
+      headers: { 'user-agent': 'Sentinel/1.0 (outil personnel d analyse immobiliere)', ...(init.headers ?? {}) },
       cache: 'no-store',
     });
     return res;

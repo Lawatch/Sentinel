@@ -190,3 +190,12 @@ describe('T13 Source en panne', () => {
     expect(JSON.stringify(a.ecart_dvf)).not.toMatch(/0 vente/);
   });
 });
+
+describe('En-têtes HTTP', () => {
+  it('l’en-tête User-Agent ne contient que des caractères ASCII (sinon fetch échoue)', async () => {
+    const src = (await import('node:fs')).readFileSync('lib/server/http.ts', 'utf8');
+    const ua = src.match(/'user-agent': '([^']+)'/)?.[1] ?? '';
+    expect(ua.length).toBeGreaterThan(5);
+    expect(/^[\x20-\x7e]+$/.test(ua)).toBe(true);
+  });
+});

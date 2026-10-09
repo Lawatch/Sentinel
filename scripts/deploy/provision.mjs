@@ -92,6 +92,13 @@ if (!project) {
       region_selection: { type: 'specific', code: REGION },
     });
   } catch (e) {
+    // Diagnostic sans données personnelles (les journaux d'un dépôt public sont publics).
+    const slug = slugOf(org);
+    const detail = await sb('GET', `/v1/organizations/${slug}`).catch((err) => ({ erreur: err.message }));
+    const members = await sb('GET', `/v1/organizations/${slug}/members`).catch((err) => ({ erreur: err.message }));
+    console.log('Diagnostic organisation :', JSON.stringify({ slug, champs: Object.keys(org), detail }));
+    console.log('Membres (rôles) :', JSON.stringify(Array.isArray(members) ? members.map((m) => ({ role: m.role_name, proprietaire: (m.email ?? '').toLowerCase() === owner })) : members));
+    console.log('Projets visibles :', projects.length);
     die(`Création du projet Supabase refusée : ${e.message}\nL’offre gratuite est limitée à 2 projets actifs : supprimez ou mettez en pause un projet inutilisé, puis relancez.`);
   }
 } else {

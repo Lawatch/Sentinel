@@ -1,6 +1,8 @@
 'use server';
 
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { headers } from 'next/headers';
+import { SUPABASE_PUBLIC_KEY, SUPABASE_URL } from '@/lib/supabase/env';
 import { createClient } from '@/lib/supabase/server';
 
 const allowed = (email: string) => {
@@ -19,11 +21,15 @@ export async function sendMagicLink(email: string, next: string | null): Promise
   if (!allowed(e)) return { ok: true };
   const h = await headers();
   const origin = h.get('origin') ?? `https://${h.get('host')}`;
-  const supabase = await createClient();
+  // Flux « implicite » : le lien de l'e-mail ne dépend pas d'un cookie posé par ce navigateur, il fonctionne
+  // donc aussi ouvert depuis l'application de messagerie du téléphone (voir app/auth/callback).
+  const supabase = createSupabaseClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY, {
+    auth: { flowType: 'implicit', persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
   const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
   const { error } = await supabase.auth.signInWithOtp({
     email: e,
-    options: { emailRedirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(safeNext)}` },
+    options: { emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(safeNext)}` },
   });
   if (error) {
     if (/rate limit/i.test(error.message)) return { ok: false, error: 'Trop d’e-mails envoyés récemment : patientez quelques minutes ou utilisez le dernier code reçu.' };

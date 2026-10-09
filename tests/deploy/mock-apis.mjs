@@ -58,6 +58,10 @@ const server = http.createServer(async (req, res) => {
     ]);
   }
   if ((m = p.match(/^\/v1\/projects\/(\w+)\/config\/auth$/))) {
+    // Comportement constaté sur l'offre gratuite (octobre 2026) : modèles d'e-mail non modifiables sans SMTP.
+    if (req.method === 'PATCH' && body.mailer_templates_magic_link_content) {
+      return json(res, 400, { message: 'Email template modification is not available for free tier projects using the default email provider.' });
+    }
     if (req.method === 'PATCH') Object.assign(state.auth, body);
     return json(res, 200, state.auth);
   }

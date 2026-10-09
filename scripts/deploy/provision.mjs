@@ -208,13 +208,20 @@ if (!appUrl) die('URL de production introuvable.');
 /* ------------------------------------------------------------------ */
 /* 3. Supabase Auth                                                    */
 /* ------------------------------------------------------------------ */
+await sb('PATCH', `/v1/projects/${ref}/config/auth`, { site_url: appUrl, uri_allow_list: `${appUrl}/**` });
+// Modèle d'e-mail en français (lien + code) : refusé sur l'offre gratuite sans SMTP personnel. L'e-mail par défaut
+// de Supabase (lien seul) fonctionne avec /auth/callback.
 const template = readFileSync(path.join(ROOT, 'supabase/templates/magic_link.html'), 'utf8');
 await sb('PATCH', `/v1/projects/${ref}/config/auth`, {
-  site_url: appUrl,
-  uri_allow_list: `${appUrl}/**`,
   mailer_subjects_magic_link: 'Votre lien de connexion à Sentinel',
   mailer_templates_magic_link_content: template,
-});
+}).then(
+  () => summary('- E-mail de connexion personnalisé (lien + code à 6 chiffres).'),
+  (e) => {
+    if (!/HTTP 400/.test(e.message)) throw e;
+    summary('- E-mail de connexion : modèle par défaut de Supabase (lien seul ; personnalisation réservée aux offres payantes ou à un SMTP personnel).');
+  },
+);
 const admin = createClient(supabaseUrl, secretKey, { auth: { persistSession: false, autoRefreshToken: false } });
 const { data: list, error: listErr } = await admin.auth.admin.listUsers({ perPage: 1000 });
 if (listErr) die(`Lecture des utilisateurs impossible : ${listErr.message}`);

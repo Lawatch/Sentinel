@@ -52,7 +52,8 @@ export function LoginForm({ next, initialError }: { next: string | null; initial
           }}
         >
           <p className="text-sm">
-            Un e-mail a été envoyé à <strong>{email}</strong> si cette adresse est autorisée. Cliquez sur le lien, ou saisissez le code qu’il contient.
+            Un e-mail a été envoyé à <strong>{email}</strong> si cette adresse est autorisée. Cliquez sur son lien : il fonctionne
+            aussi depuis l’application de messagerie de votre téléphone. Si l’e-mail contient un code, vous pouvez le saisir ici.
           </p>
           <Field label="Code reçu par e-mail" htmlFor="code">
             <Input id="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,10}" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" />

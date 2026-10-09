@@ -5,7 +5,7 @@ import pg from 'pg';
 
 const db = new pg.Client({ connectionString: process.env.MOCK_DB_URL });
 await db.connect();
-const state = { projects: [], vproject: null, env: [], auth: { site_url: 'http://localhost:3000', uri_allow_list: '', disable_signup: false }, calls: [] };
+const state = { orgs: [], projects: [], vproject: null, env: [], auth: { site_url: 'http://localhost:3000', uri_allow_list: '', disable_signup: false }, calls: [] };
 const json = (res, code, body) => {
   res.writeHead(code, { 'content-type': 'application/json' });
   res.end(body === undefined ? '' : JSON.stringify(body));
@@ -20,7 +20,14 @@ const server = http.createServer(async (req, res) => {
   if (!/^Bearer (sbp_|vc_)test/.test(req.headers.authorization ?? '')) return json(res, 401, { message: 'unauthorized' });
   // Supabase Management API
   if (req.method === 'GET' && p === '/v1/projects') return json(res, 200, state.projects);
-  if (req.method === 'GET' && p === '/v1/organizations') return json(res, 200, [{ id: 'x', slug: 'mon-org', name: 'Mon organisation' }]);
+  if (req.method === 'GET' && p === '/v1/organizations') return json(res, 200, state.orgs);
+  if (req.method === 'POST' && p === '/v1/organizations') {
+    if (!body?.name) return json(res, 400, { message: 'name requis' });
+    const org = { id: 'sentinel-org', name: body.name };
+    state.orgs.push(org);
+    return json(res, 201, org);
+  }
+  if (req.method === 'GET' && /^\/v1\/organizations\/[\w-]+\/members$/.test(p)) return json(res, 200, [{ user_id: 'u', user_name: 'moi', email: 'autre@example.com', role_name: 'Owner', mfa_enabled: false }]);
   if (req.method === 'POST' && p === '/v1/projects') {
     const allowed = ['db_pass', 'name', 'organization_slug', 'region_selection'];
     const extra = Object.keys(body).filter((k) => !allowed.includes(k));

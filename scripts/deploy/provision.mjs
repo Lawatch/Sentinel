@@ -72,13 +72,22 @@ const projects = await sb('GET', '/v1/projects');
 let project = env.SUPABASE_PROJECT_REF ? projects.find((p) => p.ref === env.SUPABASE_PROJECT_REF) : projects.find((p) => p.name === NAME);
 if (!project) {
   const orgs = await sb('GET', '/v1/organizations');
-  const org = env.SUPABASE_ORG_SLUG ? orgs.find((o) => o.slug === env.SUPABASE_ORG_SLUG) : orgs[0];
-  if (!org) die('Aucune organisation Supabase : créez-en une sur supabase.com (gratuit).');
+  const slugOf = (o) => o.slug ?? o.id;
+  let org = env.SUPABASE_ORG_SLUG ? orgs.find((o) => slugOf(o) === env.SUPABASE_ORG_SLUG) : orgs[0];
+  if (!org && env.SUPABASE_ORG_SLUG) die(`Organisation Supabase « ${env.SUPABASE_ORG_SLUG} » introuvable.`);
+  if (!org) {
+    summary('- Aucune organisation Supabase : création de l’organisation « Sentinel » (offre gratuite)…');
+    try {
+      org = await sb('POST', '/v1/organizations', { name: 'Sentinel' });
+    } catch (e) {
+      die(`Création de l’organisation Supabase refusée : ${e.message}\nCréez-en une sur supabase.com (offre Free), puis relancez.`);
+    }
+  }
   summary(`- Création du projet Supabase « ${NAME} » (région ${REGION}, organisation ${org.name})…`);
   try {
     project = await sb('POST', '/v1/projects', {
       name: NAME,
-      organization_slug: org.slug,
+      organization_slug: slugOf(org),
       db_pass: randomBytes(24).toString('base64url'),
       region_selection: { type: 'specific', code: REGION },
     });
@@ -105,6 +114,17 @@ for (let i = 0; i < 30; i++) {
   await sleep(5000);
 }
 summary(`- Supabase prêt : ${projectUrl(ref)}`);
+
+// Le service d'e-mail gratuit de Supabase n'écrit qu'aux membres de l'organisation : on le signale si besoin.
+let mailWarning = '';
+const orgSlug = project.organization_slug ?? project.organization_id;
+if (orgSlug) {
+  const members = await sb('GET', `/v1/organizations/${orgSlug}/members`).catch(() => null);
+  if (Array.isArray(members) && members.length && !members.some((m) => (m.email ?? '').toLowerCase() === owner)) {
+    mailWarning = `⚠️ ${owner} n’est pas membre de l’organisation Supabase : l’e-mail de connexion risque de ne pas arriver. Invitez cette adresse (Organization → Team) ou configurez un SMTP.`;
+    summary(`- ${mailWarning}`);
+  }
+}
 
 // Migrations : suivies dans supabase_migrations.schema_migrations (compatible avec la CLI Supabase).
 const sql = (query) => sb('POST', `/v1/projects/${ref}/database/query`, { query });
@@ -205,5 +225,5 @@ const db = await admin.from('profiles').select('id', { count: 'exact', head: tru
 summary(`- Vérification de l’application (${appUrl}/login) : ${appOk ? 'OK' : 'ÉCHEC'}`);
 summary(`- Vérification de la base (table profiles) : ${db.error ? `ÉCHEC (${db.error.message})` : 'OK'}`);
 if (!appOk || db.error) die('Vérifications finales en échec.');
-summary(`\n### ✅ Application en ligne : ${appUrl}\n\nConnectez-vous avec ${owner} : vous recevrez un lien et un code à 6 chiffres.`);
+summary(`\n### ✅ Application en ligne : ${appUrl}\n\nConnectez-vous avec ${owner} : vous recevrez un lien et un code à 6 chiffres.${mailWarning ? `\n\n${mailWarning}` : ''}`);
 if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `url=${appUrl}\n`);

@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "test:db": "vitest run --config vitest.db.config.mts",
     "test:e2e": "playwright test",
-    "check-sources": "node scripts/check-sources.mjs"
+    "test:live": "vitest run --config vitest.live.config.mts"
   },
   "engines": {
     "node": ">=20.9"
@@ -54,6 +54,7 @@
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.8",
     "pg": "8.23.1",
+    "supabase": "2.120.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
     "vitest": "5.0.3"

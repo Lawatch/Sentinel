@@ -12,3 +12,4 @@ next-env.d.ts
 .vercel
 supabase/.temp/
 supabase/.branches/
+live-report.json

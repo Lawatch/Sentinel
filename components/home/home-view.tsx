@@ -209,6 +209,9 @@ export function HomeView({ summaries, zones, budgetDefaut }: { summaries: Proper
     if (!r.ok) return setDraft({ ...draft, busy: false, error: r.error });
     setDraft(null);
     setZoneId(r.data.id);
+    // Une zone sert d'abord à savoir où chercher : on affiche directement le classement de ses communes.
+    setMode('marche');
+    setMobileTab('liste');
     router.refresh();
   };
 
@@ -347,7 +350,14 @@ export function HomeView({ summaries, zones, budgetDefaut }: { summaries: Proper
         </div>
 
         <div className={cn('min-h-0 flex-1 overflow-y-auto md:block', mobileTab === 'liste' ? 'block' : 'hidden')}>
-          {zone ? <ZoneBar key={zone.id + zone.nom} zone={zone} onDeleted={() => setZoneId(null)} /> : null}
+          {zone ? (
+            <ZoneBar
+              key={zone.id + zone.nom}
+              zone={zone}
+              onDeleted={() => setZoneId(null)}
+              onMarket={mode === 'biens' ? () => setMode('marche') : undefined}
+            />
+          ) : null}
           {mode === 'biens' && (notEnriched.length || bulk) ? (
             <div className="flex flex-wrap items-center gap-2 border-b border-border bg-warning/5 px-3 py-2 text-xs">
               {notEnriched.length ? <span>{notEnriched.length} bien(s) pas encore enrichi(s) avec les données publiques.</span> : null}
@@ -389,7 +399,7 @@ export function HomeView({ summaries, zones, budgetDefaut }: { summaries: Proper
   );
 }
 
-function ZoneBar({ zone, onDeleted }: { zone: ZoneRow; onDeleted: () => void }) {
+function ZoneBar({ zone, onDeleted, onMarket }: { zone: ZoneRow; onDeleted: () => void; onMarket?: () => void }) {
   const [editing, setEditing] = useState(false);
   const [nom, setNom] = useState(zone.nom);
   const [pending, start] = useTransition();
@@ -432,6 +442,11 @@ function ZoneBar({ zone, onDeleted }: { zone: ZoneRow; onDeleted: () => void }) 
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
+      {onMarket ? (
+        <Button size="sm" variant="primary" className="ml-auto" onClick={onMarket}>
+          Voir le marché de cette zone
+        </Button>
+      ) : null}
     </div>
   );
 }

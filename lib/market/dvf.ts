@@ -127,9 +127,11 @@ export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: 
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-const minusMonths = (date: string, months: number) => {
-  const d = new Date(date + 'T00:00:00Z');
+/** Premier jour d'une fenêtre de `months` mois se terminant le jour `fin` inclus (24 mois au 31/12/2025 → 01/01/2024). */
+export const windowStart = (fin: string, months: number) => {
+  const d = new Date(fin + 'T00:00:00Z');
   d.setUTCMonth(d.getUTCMonth() - months);
+  d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().slice(0, 10);
 };
 
@@ -179,7 +181,7 @@ export interface ComparablesResult extends DvfSummary {
  * élargir à 1 km puis à la commune ; sous 5 ventes, pas d'estimation.
  */
 export function findComparables(sales: DvfSale[], q: ComparableQuery, meta: { source: string; millesime: string; recupere_le?: string | null }): ComparablesResult {
-  const debut = minusMonths(q.fin, q.mois ?? 24);
+  const debut = windowStart(q.fin, q.mois ?? 24);
   const pool = withoutOutliers(
     sales.filter((s) => s.type_local === q.type && s.surface && s.date_mutation >= debut && s.date_mutation <= q.fin),
   ).filter((s) => s.surface! >= q.surface * 0.7 && s.surface! <= q.surface * 1.3);
@@ -225,7 +227,7 @@ export function findComparables(sales: DvfSale[], q: ComparableQuery, meta: { so
 
 /** Prix médian au m² d'une commune (radar) : 24 mois, type visé, hors valeurs aberrantes. */
 export function communeMedian(sales: DvfSale[], codeInsee: string, type: 'Appartement' | 'Maison', fin: string) {
-  const debut = minusMonths(fin, 24);
+  const debut = windowStart(fin, 24);
   const pool = withoutOutliers(
     sales.filter((s) => s.code_insee === codeInsee && s.type_local === type && s.surface && s.date_mutation >= debut && s.date_mutation <= fin),
   );
@@ -236,7 +238,7 @@ export function communeMedian(sales: DvfSale[], codeInsee: string, type: 'Appart
 /** Années de fichiers DVF à charger pour couvrir 24 mois avant la fin du millésime. */
 export function yearsToLoad(fin: string, mois = 24): number[] {
   const end = Number(fin.slice(0, 4));
-  const start = Number(minusMonths(fin, mois).slice(0, 4));
+  const start = Number(windowStart(fin, mois).slice(0, 4));
   const years: number[] = [];
   for (let y = start; y <= end; y++) years.push(y);
   return years;

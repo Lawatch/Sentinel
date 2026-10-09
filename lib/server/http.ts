@@ -57,10 +57,17 @@ export async function fetchSource(url: string, init: RequestInit & { timeoutMs?:
   }
 }
 
+/** JSON d'une source ; une réponse vide (certains points d'accès Géorisques) vaut « aucune donnée » (null). */
 export async function fetchJson<T = unknown>(url: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
   const res = await fetchSource(url, init);
   if (!res.ok) throw new SourceError(`HTTP ${res.status}`, res.status);
-  return (await res.json()) as T;
+  const text = await res.text();
+  if (!text.trim()) return null as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new SourceError('réponse illisible (JSON attendu)');
+  }
 }
 
 export async function fetchBuffer(url: string, init?: RequestInit & { timeoutMs?: number }): Promise<ArrayBuffer> {

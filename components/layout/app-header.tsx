@@ -31,9 +31,11 @@ export function AppHeader({ email }: { email: string }) {
               <Link
                 key={href}
                 href={href}
+                aria-label={label}
+                title={label}
                 className={cn('flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm', active ? 'bg-accent-soft font-medium text-accent' : 'text-muted hover:bg-surface-2 hover:text-fg')}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4" aria-hidden />
                 <span className="hidden md:inline">{label}</span>
               </Link>
             );

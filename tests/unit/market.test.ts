@@ -35,7 +35,8 @@ describe('T12 Filtre DVF', () => {
     expect(filterMutations([{ id_mutation: 'x', nature_mutation: 'Echange', valeur_fonciere: '1', type_local: 'Appartement', surface_reelle_bati: '20' }], 'm')).toHaveLength(0);
   });
   it('années de fichiers à charger pour 24 mois', () => {
-    expect(yearsToLoad('2025-12-31')).toEqual([2023, 2024, 2025]);
+    expect(yearsToLoad('2025-12-31')).toEqual([2024, 2025]);
+    expect(yearsToLoad('2026-06-30')).toEqual([2024, 2025, 2026]);
   });
 });
 

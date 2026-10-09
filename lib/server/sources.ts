@@ -12,6 +12,7 @@ import {
   findComparables,
   haversineMeters,
   parseDvfCsv,
+  windowStart,
   yearsToLoad,
   type DvfSale,
 } from '@/lib/market/dvf';
@@ -83,12 +84,16 @@ export const needsConfirmation = (r: GeocodeResult | undefined) => !r || r.score
 /* Communes (geo.api.gouv.fr)                                           */
 /* ------------------------------------------------------------------ */
 
-/** Commune (ou arrondissement municipal) contenant un point. */
+/** Commune (ou arrondissement municipal pour Paris, Lyon, Marseille) contenant un point. */
 export async function communeAt(d: Deps, lat: number, lon: number): Promise<{ code: string; nom: string } | null> {
-  const url = `${GEO_API}/communes?lat=${lat}&lon=${lon}&type=arrondissement-municipal,commune-actuelle&fields=code,nom`;
-  const list = await d.http.json<{ code: string; nom: string }[]>(url);
-  // Paris, Lyon, Marseille : on préfère l'arrondissement (codes utilisés par DVF et l'ANIL).
-  return list.find((c) => /^(751|6938|132)/.test(c.code) && !['75056', '69123', '13055'].includes(c.code)) ?? list[0] ?? null;
+  const list = await d.http.json<{ code: string; nom: string }[] | null>(`${GEO_API}/communes?lat=${lat}&lon=${lon}&fields=code,nom`);
+  const c = list?.[0] ?? null;
+  // DVF et l'ANIL utilisent les codes d'arrondissement : on les préfère au code de la commune.
+  if (c && ['75056', '69123', '13055'].includes(c.code)) {
+    const arr = await d.http.json<{ code: string; nom: string }[] | null>(`${GEO_API}/communes?lat=${lat}&lon=${lon}&type=arrondissement-municipal&fields=code,nom`);
+    return arr?.[0] ?? c;
+  }
+  return c;
 }
 
 /** Contours simplifiés des communes d'un département (arrondissements pour Paris), en cache. */
@@ -190,11 +195,6 @@ export type DvfOutcome = DvfSummary & {
   ventes?: { id_mutation: string; date: string; prix: number; surface: number | null; prix_m2: number; distance_m: number; adresse: string | null; type: string }[];
 };
 
-const minusMonths = (date: string, months: number) => {
-  const dt = new Date(date + 'T00:00:00Z');
-  dt.setUTCMonth(dt.getUTCMonth() - months);
-  return dt.toISOString().slice(0, 10);
-};
 
 /** Communes situées à moins d'1 km du bien (échantillonnage de 8 points sur le cercle). */
 async function communesWithin1km(d: Deps, lat: number, lon: number, code: string) {
@@ -228,7 +228,7 @@ export async function dvfFor(
     const codes = await communesWithin1km(d, p.lat, p.lon, p.code_insee);
     let recupere: string | null = null;
     for (const c of codes) recupere = (await ensureDvfCommune(d, c, fin, force)).recupere_le ?? recupere;
-    const sales = await d.dvf.query(codes, minusMonths(fin, 24), fin);
+    const sales = await d.dvf.query(codes, windowStart(fin, 24), fin);
     if (p.type === 'murs_commerciaux') {
       const locaux = sales
         .filter((s) => s.type_local === 'Local' && s.lat !== null && s.lon !== null)
@@ -241,7 +241,7 @@ export async function dvfFor(
         millesime: fin,
         recupere_le: recupere,
         n: locaux.length,
-        periode: { debut: minusMonths(fin, 24), fin },
+        periode: { debut: windowStart(fin, 24), fin },
         perimetre: '1 km',
         message: 'Locaux commerciaux : ventes affichées à titre indicatif (surfaces souvent absentes), sans estimation.',
         ventes: locaux.slice(0, 30).map(({ s, dist }) => ({
@@ -496,7 +496,7 @@ export async function radarCommune(d: Deps, code: string, type: 'appartement' | 
   try {
     fin = await dvfMillesime(d);
     await ensureDvfCommune(d, code, fin);
-    sales = await d.dvf.query([code], minusMonths(fin, 24), fin);
+    sales = await d.dvf.query([code], windowStart(fin, 24), fin);
   } catch (e) {
     return { code, status: 'indisponible', n_ventes: 0, mediane_m2: null, loyer_cc_m2: null, loyer_hc_m2: null, rendement_brut: null, message: `DVF indisponible : ${errMsg(e)}` };
   }

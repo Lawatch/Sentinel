@@ -13,7 +13,7 @@ export const SOURCES = [
   { id: 'anil', nom: 'Carte des loyers ANIL 2025', usage: 'Loyer de marché par commune', test: ANIL_FILES.appartement, head: true },
   { id: 'dpe', nom: 'DPE logements existants (ADEME)', usage: 'DPE enregistrés à l’adresse', test: `${DPE_API}?size=1&select=numero_dpe` },
   { id: 'geocodage', nom: 'Géocodage Géoplateforme (IGN)', usage: 'Adresse → coordonnées, code INSEE', test: `${GEOCODE_URL}?q=${encodeURIComponent('20 avenue de Ségur Paris')}&limit=1` },
-  { id: 'georisques', nom: 'Géorisques', usage: 'Risques naturels et technologiques au point', test: `${GEORISQUES_API}/rga?latlon=2.3086,48.8507` },
+  { id: 'georisques', nom: 'Géorisques', usage: 'Risques naturels et technologiques au point', test: `${GEORISQUES_API}/zonage_sismique?latlon=2.2420,48.8383` },
   { id: 'encadrement', nom: 'Encadrement des loyers (Paris, Plaine Commune, Est Ensemble)', usage: 'Plafond légal du loyer', test: `${PARIS_API}?limit=1&select=annee` },
   { id: 'communes', nom: 'Découpage administratif (geo.api.gouv.fr)', usage: 'Communes d’une zone et contours', test: `${GEO_API}/communes?code=75056&fields=nom` },
   { id: 'fond_ign', nom: 'Fond de carte Plan IGN', usage: 'Carte', test: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetCapabilities', head: true },

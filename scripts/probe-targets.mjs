@@ -1,0 +1,15 @@
+export default [
+  { url: 'https://files.data.gouv.fr/geo-dvf/latest/csv/', max: 2000 },
+  { url: 'https://files.data.gouv.fr/geo-dvf/latest/csv/2025/communes/92/92012.csv', max: 2500 },
+  { url: 'https://www.data.gouv.fr/api/1/datasets/?q=carte%20des%20loyers%202025&page_size=5', max: 6000 },
+  { url: 'https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant', max: 3000 },
+  { url: 'https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant/lines?size=1&q_mode=simple&qs=code_insee_ban:92012', max: 6000 },
+  { url: 'https://data.geopf.fr/geocodage/search?q=20%20avenue%20de%20Segur%20Paris&limit=1', max: 2500 },
+  { url: 'https://www.georisques.gouv.fr/api/v1/resultats_rapport_risque?latlon=2.3076,48.8510', max: 3000 },
+  { url: 'https://georisques.gouv.fr/api/v1/gaspar/risques?latlon=2.3076,48.8510', max: 2000 },
+  { url: 'https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/logement-encadrement-des-loyers/records?limit=1', max: 3000 },
+  { url: 'https://www.data.gouv.fr/api/1/datasets/?q=encadrement%20des%20loyers&page_size=8', max: 5000 },
+  { url: 'https://geo.api.gouv.fr/communes?lat=48.851&lon=2.3076&fields=code,nom,codeDepartement', max: 800 },
+  { url: 'https://geo.api.gouv.fr/communes?code=75056&type=arrondissement-municipal&fields=code,nom', max: 800 },
+  { url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&TILEMATRIX=12&TILEROW=1409&TILECOL=2074', max: 10 },
+];

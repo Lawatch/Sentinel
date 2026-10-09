@@ -1,28 +1,7 @@
-import type { MarketContext, MarketRent, RentControl, Risks, SourceStatus } from '@/lib/finance/market';
+import type { SourceStatus } from '@/lib/finance/market';
+import type { Enrichment } from '@/lib/domain/enrichment';
 import { RESIDENTIAL_TYPES, type AssetType, type PropertyInputs } from '@/lib/finance/schema';
-import type { GeocodeResult } from '@/lib/market/geocode';
-import { anilFor, dpeFor, dvfFor, encadrementFor, geocode, georisquesFor, needsConfirmation, type Deps, type DpeOutcome, type DvfOutcome } from './sources';
-
-/** Résultat d'enrichissement stocké dans properties.enrichissement. */
-export interface Enrichment {
-  date: string;
-  geocodage?: {
-    status: SourceStatus;
-    source: string;
-    recupere_le: string | null;
-    label?: string;
-    score?: number;
-    a_confirmer: boolean;
-    confirme: boolean;
-    candidats?: GeocodeResult[];
-    message?: string;
-  };
-  dvf?: DvfOutcome;
-  loyer?: MarketRent;
-  dpe?: DpeOutcome;
-  risques?: Risks;
-  encadrement?: RentControl;
-}
+import { anilFor, dpeFor, dvfFor, encadrementFor, geocode, georisquesFor, needsConfirmation, type Deps } from './sources';
 
 export interface PropertyForEnrichment {
   type_actif: AssetType;
@@ -162,17 +141,5 @@ export async function enrichProperty(d: Deps, p: PropertyForEnrichment, opts: { 
   return { lat, lon, code_insee: code, commune: commune ?? null, geocode_score: score, geocode_label: label, ban_id, enrichissement: enrichment };
 }
 
-/** Contexte de marché passé au moteur (aucun appel réseau). */
-export function marketContextOf(e: Partial<Enrichment> | null | undefined): MarketContext {
-  if (!e) return {};
-  return { loyer: e.loyer, dvf: e.dvf, encadrement: e.encadrement, risques: e.risques };
-}
 
-export const STATUS_LABELS: Record<SourceStatus, string> = {
-  ok: 'opérationnelle',
-  indisponible: 'indisponible',
-  a_configurer: 'à configurer',
-  non_applicable: 'sans objet',
-  insuffisant: 'données insuffisantes',
-  non_demande: 'non interrogée',
-};
+export { marketContextOf, STATUS_LABELS, type Enrichment } from '@/lib/domain/enrichment';

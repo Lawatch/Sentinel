@@ -110,3 +110,52 @@ describe('T15 Import CSV', () => {
     expect(Number.isNaN(parseNumber('abc'))).toBe(true);
   });
 });
+
+import { buildBackup, planRestore } from '@/lib/domain/backup';
+
+describe('Sauvegarde et restauration', () => {
+  const backup = buildBackup({
+    profiles: [{ id: 'p1', user_id: 'u', nom: 'Profil', params: {} }],
+    zones: [],
+    properties: [
+      { id: 'b1', user_id: 'u', url_normalisee: 'https://ex.fr/1' },
+      { id: 'b2', user_id: 'u', url_normalisee: 'https://ex.fr/2' },
+    ],
+    price_observations: [
+      { id: 'o1', property_id: 'b1', date: '2026-10-01T00:00:00.000Z', prix: 250000 },
+      { id: 'o2', property_id: 'b1', date: '2026-10-08T00:00:00.000Z', prix: 235000 },
+      { id: 'o3', property_id: 'b2', date: '2026-10-01T00:00:00.000Z', prix: 100000 },
+    ],
+    import_jobs: [],
+  });
+
+  it('n’exporte aucun user_id', () => {
+    expect(JSON.stringify(backup)).not.toMatch(/user_id/);
+  });
+
+  it('rejouer deux fois le même fichier ne crée pas de doublons', () => {
+    // Base vide : tout est écrit.
+    const first = planRestore(backup, { properties: [], price_observations: [] });
+    expect(first.properties.map((p) => p.id)).toEqual(['b1', 'b2']);
+    expect(first.price_observations).toHaveLength(3);
+    // Deuxième passage : mêmes identifiants (upsert), aucune nouvelle ligne.
+    const state = {
+      properties: first.properties.map((p) => ({ id: String(p.id), url_normalisee: String(p.url_normalisee) })),
+      price_observations: first.price_observations.map((o) => ({ id: String(o.id), property_id: String(o.property_id), date: String(o.date), prix: Number(o.prix) })),
+    };
+    const second = planRestore(backup, state);
+    expect(second.properties.map((p) => p.id)).toEqual(['b1', 'b2']);
+    expect(second.price_observations.map((o) => o.id)).toEqual(['o1', 'o2', 'o3']);
+    const ids = new Set([...state.price_observations.map((o) => o.id), ...second.price_observations.map((o) => String(o.id))]);
+    expect(ids.size).toBe(3);
+  });
+
+  it('rattache un bien existant de même URL et n’en duplique pas les observations', () => {
+    const plan = planRestore(backup, {
+      properties: [{ id: 'autre', url_normalisee: 'https://ex.fr/1' }],
+      price_observations: [{ id: 'x', property_id: 'autre', date: '2026-10-01T00:00:00Z', prix: 250000 }],
+    });
+    expect(plan.properties[0].id).toBe('autre');
+    expect(plan.price_observations.filter((o) => o.property_id === 'autre').map((o) => o.id)).toEqual(['o2']);
+  });
+});

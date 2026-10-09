@@ -1,0 +1,6 @@
+type,prix,surface,adresse,url,loyer,charges,taxe foncière,dpe,travaux,lots,description
+appartement,229 000,31,"24 rue de Bellevue, 92100 Boulogne-Billancourt",https://exemple.invalid/annonce/101,950,1300,780,D,,,"T1 refait, 3e étage"
+appartement,265000,48,"12 rue Danton, 93100 Montreuil",https://exemple.invalid/annonce/102,1150,1600,1100,C,5000,,
+maison,312000,95,"15 rue Gambetta, 95100 Argenteuil",https://exemple.invalid/annonce/103,1550,,1850,D,,,
+immeuble,420000,180,"27 rue de Paris, 77100 Meaux",https://exemple.invalid/annonce/104,2560,,3200,D,25000,4,Immeuble de 4 lots loués
+murs commerciaux,285000,70,"18 rue Jean Jaurès, 92800 Puteaux",https://exemple.invalid/annonce/105,1800,,2400,,,,Murs loués à une boulangerie

@@ -31,7 +31,7 @@ export function georisquesUrls(lat: number, lon: number, codeInsee: string) {
   };
 }
 
-type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+type Json = Record<string, any>;
 export type GeorisquesRaw = Partial<Record<keyof ReturnType<typeof georisquesUrls>, Json | null>>;
 
 /** Construit la liste factuelle à partir des réponses obtenues (une réponse absente est ignorée et signalée). */

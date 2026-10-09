@@ -68,7 +68,21 @@ const vc = (m, u, b, o) => api(VC, env.VERCEL_TOKEN, m, vq(u), b, o);
 /* 1. Supabase                                                         */
 /* ------------------------------------------------------------------ */
 summary('## Déploiement de Sentinel\n');
-const projects = await sb('GET', '/v1/projects');
+
+// Contrôle préalable des deux jetons, pour signaler tous les problèmes en une seule exécution.
+const SCOPED_HINT =
+  'Le jeton Supabase n’a pas accès à vos organisations (jeton « à portée limitée »). Sur supabase.com → Account preferences → ' +
+  'Access Tokens, créez un nouveau jeton donnant accès à toutes les organisations et à tous les projets (accès complet), ' +
+  'puis remplacez le secret SUPABASE_ACCESS_TOKEN dans GitHub et relancez.';
+const vercelUser = await vc('GET', '/v2/user').catch((e) => {
+  summary(`- ❌ Jeton Vercel refusé : ${e.message}`);
+  return null;
+});
+if (vercelUser) summary('- Jeton Vercel valide.');
+const projects = await sb('GET', '/v1/projects').catch((e) => die(`Jeton Supabase refusé : ${e.message}`));
+if (!vercelUser) die('Remplacez le secret VERCEL_TOKEN (Vercel → Account Settings → Tokens, portée Full Account), puis relancez.');
+summary('- Jeton Supabase valide.');
+
 let project = env.SUPABASE_PROJECT_REF ? projects.find((p) => p.ref === env.SUPABASE_PROJECT_REF) : projects.find((p) => p.name === NAME);
 if (!project) {
   const orgs = await sb('GET', '/v1/organizations');
@@ -76,10 +90,12 @@ if (!project) {
   let org = env.SUPABASE_ORG_SLUG ? orgs.find((o) => slugOf(o) === env.SUPABASE_ORG_SLUG) : orgs[0];
   if (!org && env.SUPABASE_ORG_SLUG) die(`Organisation Supabase « ${env.SUPABASE_ORG_SLUG} » introuvable.`);
   if (!org) {
-    summary('- Aucune organisation Supabase : création de l’organisation « Sentinel » (offre gratuite)…');
+    summary('- Aucune organisation Supabase visible : création de l’organisation « Sentinel » (offre gratuite)…');
     try {
       org = await sb('POST', '/v1/organizations', { name: 'Sentinel' });
     } catch (e) {
+      // L'organisation existe mais le jeton ne la voit pas : jeton à portée limitée.
+      if (/already a member/i.test(e.message)) die(SCOPED_HINT);
       die(`Création de l’organisation Supabase refusée : ${e.message}\nCréez-en une sur supabase.com (offre Free), puis relancez.`);
     }
   }
@@ -92,13 +108,7 @@ if (!project) {
       region_selection: { type: 'specific', code: REGION },
     });
   } catch (e) {
-    // Diagnostic sans données personnelles (les journaux d'un dépôt public sont publics).
-    const slug = slugOf(org);
-    const detail = await sb('GET', `/v1/organizations/${slug}`).catch((err) => ({ erreur: err.message }));
-    const members = await sb('GET', `/v1/organizations/${slug}/members`).catch((err) => ({ erreur: err.message }));
-    console.log('Diagnostic organisation :', JSON.stringify({ slug, champs: Object.keys(org), detail }));
-    console.log('Membres (rôles) :', JSON.stringify(Array.isArray(members) ? members.map((m) => ({ role: m.role_name, proprietaire: (m.email ?? '').toLowerCase() === owner })) : members));
-    console.log('Projets visibles :', projects.length);
+    if (/HTTP 403/.test(e.message)) die(`${SCOPED_HINT}\n(${e.message})`);
     die(`Création du projet Supabase refusée : ${e.message}\nL’offre gratuite est limitée à 2 projets actifs : supprimez ou mettez en pause un projet inutilisé, puis relancez.`);
   }
 } else {
@@ -159,7 +169,7 @@ const supabaseUrl = projectUrl(ref);
 /* ------------------------------------------------------------------ */
 /* 2. Vercel                                                           */
 /* ------------------------------------------------------------------ */
-const user = await vc('GET', '/v2/user');
+const user = vercelUser;
 const orgId = env.VERCEL_TEAM_ID || user.user?.id || user.user?.uid;
 let vproject = await vc('GET', `/v9/projects/${NAME}`, undefined, { ok404: true });
 if (!vproject) {
